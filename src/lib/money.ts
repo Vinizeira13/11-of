@@ -1,0 +1,12 @@
+const BRL = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+export function formatBRL(cents: number): string {
+  return BRL.format(cents / 100);
+}
+
+export function centsToBRL(cents: number): number {
+  return Math.round(cents) / 100;
+}
