@@ -5,8 +5,9 @@ export type Announcement = {
 };
 
 export const ANNOUNCEMENTS: Announcement[] = [
-  { emoji: "⚡", message: "Pague com PIX e ganhe 10% OFF" },
-  { emoji: "🚚", message: "Frete grátis acima de R$ 299" },
-  { emoji: "📦", message: "Despacho em 24h úteis" },
-  { emoji: "🔄", message: "Trocas gratuitas em até 7 dias" },
+  { emoji: "⚡", message: "Pague no PIX e ganhe 15% OFF no total" },
+  { emoji: "🏆", message: "Camisas oficiais — Copa do Mundo 2026" },
+  { emoji: "🚚", message: "Frete grátis acima de R$ 299 — Brasil inteiro" },
+  { emoji: "📦", message: "Despacho em 24h úteis · Correios e Jadlog" },
+  { emoji: "🔒", message: "Compra segura · Troca grátis em 7 dias" },
 ];
