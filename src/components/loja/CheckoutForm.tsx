@@ -7,7 +7,18 @@ import {
   useState,
   useTransition,
 } from "react";
-import { Check, Lock, Mail, MapPin, Phone, Search, User } from "lucide-react";
+import {
+  Check,
+  Lock,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Search,
+  Sparkles,
+  StickyNote,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Field,
@@ -25,6 +36,14 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -85,6 +104,12 @@ export function CheckoutForm() {
   const [cepLookupPending, startCepLookup] = useTransition();
   const numeroRef = useRef<HTMLInputElement | null>(null);
   const hydrated = useRef(false);
+  // Customer-intent / upsell fields
+  const [wantsWhatsApp, setWantsWhatsApp] = useState(true);
+  const [wantsMarketing, setWantsMarketing] = useState(true);
+  const [source, setSource] = useState<string>("");
+  const [notes, setNotes] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const fieldErrors = state.fieldErrors ?? {};
 
@@ -103,6 +128,8 @@ export function CheckoutForm() {
     if (d.bairro) setBairro(d.bairro);
     if (d.cidade) setCidade(d.cidade);
     if (d.uf) setUf(d.uf);
+    if (d.notes) setNotes(d.notes);
+    if (d.attribution_source) setSource(d.attribution_source);
   }, []);
 
   // ------- Persist draft on change (debounced by natural re-render cadence) -------
@@ -119,8 +146,23 @@ export function CheckoutForm() {
       bairro,
       cidade,
       uf,
+      notes,
+      attribution_source: source,
     });
-  }, [email, phone, name, cep, logradouro, numero, complemento, bairro, cidade, uf]);
+  }, [
+    email,
+    phone,
+    name,
+    cep,
+    logradouro,
+    numero,
+    complemento,
+    bairro,
+    cidade,
+    uf,
+    notes,
+    source,
+  ]);
 
   // ------- Derived validity -------
   const emailValid = emailTouched && isLikelyValidEmail(email);
@@ -434,7 +476,155 @@ export function CheckoutForm() {
         </FieldGroup>
       </FieldSet>
 
+      <Separator />
+
+      <FieldSet>
+        <FieldLegend className="flex items-center gap-2">
+          <StickyNote className="size-4 text-turf" aria-hidden />
+          Observações <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+        </FieldLegend>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="order_notes" className="sr-only">
+              Observações
+            </FieldLabel>
+            <Textarea
+              id="order_notes"
+              name="order_notes"
+              rows={3}
+              maxLength={500}
+              placeholder="Ex: camisa pra presente, ligar no WhatsApp antes de entregar, prefiro receber de tarde…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <FieldDescription>
+              {notes.length}/500 — Deixe qualquer observação ou pedido especial
+              pra o atendimento.
+            </FieldDescription>
+          </Field>
+        </FieldGroup>
+      </FieldSet>
+
+      <Separator />
+
+      <FieldSet>
+        <FieldLegend className="flex items-center gap-2">
+          <Sparkles className="size-4 text-turf" aria-hidden />
+          Contato & preferências
+        </FieldLegend>
+        <FieldGroup>
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 bg-card/40 p-3 transition hover:border-foreground/50">
+            <input
+              type="checkbox"
+              name="wants_whatsapp_updates"
+              checked={wantsWhatsApp}
+              onChange={(e) => setWantsWhatsApp(e.target.checked)}
+              className="mt-0.5 size-4 cursor-pointer accent-turf"
+            />
+            <div className="flex-1 text-sm">
+              <p className="font-medium inline-flex items-center gap-1.5">
+                <MessageCircle className="size-3.5 text-turf" aria-hidden />
+                Rastreio no WhatsApp
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                A gente te chama no número cadastrado com cada atualização do
+                pedido — postagem, saiu pra entrega, recebido.
+              </p>
+            </div>
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 bg-card/40 p-3 transition hover:border-foreground/50">
+            <input
+              type="checkbox"
+              name="wants_marketing_email"
+              checked={wantsMarketing}
+              onChange={(e) => setWantsMarketing(e.target.checked)}
+              className="mt-0.5 size-4 cursor-pointer accent-turf"
+            />
+            <div className="flex-1 text-sm">
+              <p className="font-medium">
+                Quero saber dos próximos drops antes de todo mundo
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                1-2 emails por mês. Cancela quando quiser (um clique).
+              </p>
+            </div>
+          </label>
+
+          <Field>
+            <FieldLabel htmlFor="attribution_source">
+              Como você nos encontrou?{" "}
+              <span className="font-normal text-muted-foreground">
+                (opcional)
+              </span>
+            </FieldLabel>
+            <Select value={source} onValueChange={setSource}>
+              <SelectTrigger id="attribution_source">
+                <SelectValue placeholder="Escolhe aí…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="instagram">Instagram</SelectItem>
+                <SelectItem value="tiktok">TikTok</SelectItem>
+                <SelectItem value="google">Google / pesquisa</SelectItem>
+                <SelectItem value="amigo">Indicação de amigo</SelectItem>
+                <SelectItem value="youtube">YouTube</SelectItem>
+                <SelectItem value="twitter">Twitter / X</SelectItem>
+                <SelectItem value="outro">Outro lugar</SelectItem>
+              </SelectContent>
+            </Select>
+            {/* Hidden input so the value reaches the FormData submission */}
+            <input type="hidden" name="attribution_source" value={source} />
+            <FieldDescription>
+              A gente usa pra saber onde investir na divulgação — não chega em
+              propaganda.
+            </FieldDescription>
+          </Field>
+        </FieldGroup>
+      </FieldSet>
+
       <div className="flex flex-col gap-3">
+        <label
+          className={cn(
+            "flex cursor-pointer items-start gap-3 rounded-xl border bg-card/40 p-3 text-sm transition",
+            fieldErrors.accept_terms
+              ? "border-destructive/60 bg-destructive/5"
+              : "border-border/70 hover:border-foreground/50",
+          )}
+        >
+          <input
+            type="checkbox"
+            name="accept_terms"
+            required
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-0.5 size-4 cursor-pointer accent-turf"
+          />
+          <span className="flex-1 text-xs leading-relaxed text-muted-foreground">
+            Li e aceito os{" "}
+            <a
+              href="/termos"
+              target="_blank"
+              rel="noopener"
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              Termos de uso
+            </a>{" "}
+            e a{" "}
+            <a
+              href="/privacidade"
+              target="_blank"
+              rel="noopener"
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              Política de privacidade
+            </a>
+            . Autorizo o uso dos meus dados pra processar o pedido (LGPD).
+          </span>
+        </label>
+        {fieldErrors.accept_terms && (
+          <FieldError>{fieldErrors.accept_terms}</FieldError>
+        )}
+
         <Button
           type="submit"
           size="lg"

@@ -41,6 +41,32 @@ const formSchema = z.object({
     .trim()
     .transform((v) => v.toUpperCase())
     .refine((v) => v.length === 2, "UF inválida."),
+  // -------- Customer-intent / data-capture extensions --------
+  order_notes: z
+    .string()
+    .trim()
+    .max(500, "Observação grande demais.")
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  wants_whatsapp_updates: z
+    .string()
+    .optional()
+    .transform((v) => v === "on"),
+  wants_marketing_email: z
+    .string()
+    .optional()
+    .transform((v) => v === "on"),
+  attribution_source: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  accept_terms: z
+    .string()
+    .optional()
+    .refine((v) => v === "on", {
+      message: "Você precisa aceitar os termos pra continuar.",
+    }),
 });
 
 export type CheckoutFormState = {
@@ -133,6 +159,10 @@ export async function createOrderAction(
       total_cents: totalCents,
       status: "pending",
       payment_status: "pending",
+      order_notes: data.order_notes,
+      wants_whatsapp_updates: data.wants_whatsapp_updates,
+      wants_marketing_email: data.wants_marketing_email,
+      attribution_source: data.attribution_source,
     })
     .select("id, short_code")
     .single();

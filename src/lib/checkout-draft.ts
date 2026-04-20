@@ -19,6 +19,8 @@ export type CheckoutDraft = {
   bairro?: string;
   cidade?: string;
   uf?: string;
+  notes?: string;
+  attribution_source?: string;
 };
 
 export function loadDraft(): CheckoutDraft {

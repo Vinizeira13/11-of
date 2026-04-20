@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { FreeShippingBar } from "./FreeShippingBar";
+import { CheckoutDeliveryEta } from "./CheckoutDeliveryEta";
 import {
   removeFromCartAction,
   updateCartQtyAction,
@@ -109,8 +110,9 @@ export function CheckoutSummary({
             </Badge>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
             <FreeShippingBar subtotalCents={subtotalCents} />
+            <CheckoutDeliveryEta />
           </div>
 
           <ul className="mt-5 flex flex-col gap-4">
