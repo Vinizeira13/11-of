@@ -27,7 +27,7 @@ export function TeamStripe() {
               {t.shortName}
             </span>
             <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              {t.code} · {t.star.name}
+              {t.code} · {t.confederation}
             </span>
           </a>
         ))}

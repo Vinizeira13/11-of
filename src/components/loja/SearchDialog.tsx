@@ -31,13 +31,15 @@ function buildEntries(products: Product[]): Entry[] {
     const { product: shots, editorial } = splitImages(p.images);
     const image = shots[0] ?? editorial[0] ?? p.images[0] ?? null;
     const title = team ? team.name : p.name;
-    const subtitle = team ? `${team.shortName} · ${team.star.name}` : p.name;
+    const subtitle = team
+      ? `${team.shortName} · ${team.code} · ${team.confederation}`
+      : p.name;
     const keywords = [
       title,
       team?.shortName,
       team?.country,
       team?.code,
-      team?.star.name,
+      team?.star.name, // kept internally so search by player still finds the kit
       p.name,
       p.slug,
     ]

@@ -102,8 +102,8 @@ export function MobileNav() {
                       <p className="truncate text-sm font-semibold">
                         {t.shortName}
                       </p>
-                      <p className="truncate text-[10px] text-muted-foreground">
-                        {t.star.name}
+                      <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {t.code} · {t.confederation}
                       </p>
                     </div>
                   </Link>

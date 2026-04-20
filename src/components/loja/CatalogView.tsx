@@ -444,7 +444,7 @@ function TeamList() {
               {t.shortName}
             </span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {t.star.name}
+              {t.code} · {t.confederation}
             </span>
           </a>
         ))}

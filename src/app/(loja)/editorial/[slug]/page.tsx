@@ -71,7 +71,7 @@ export default async function EditorialTeamPage({ params }: PageProps) {
         <div className="relative h-[68vh] min-h-[520px] overflow-hidden md:rounded-3xl">
           <Image
             src={heroImage}
-            alt={`${team.shortName} — ${team.star.name}`}
+            alt={`${team.shortName} — editorial oficial Nike 2026`}
             fill
             priority
             sizes="(min-width:1440px) 1408px, 100vw"
@@ -159,13 +159,13 @@ export default async function EditorialTeamPage({ params }: PageProps) {
         </section>
       )}
 
-      {/* Star player spotlight */}
+      {/* Star player spotlight — image IS the player, caption is journalism */}
       <section className="mx-auto mt-20 max-w-[1440px] px-6">
         <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-12">
           <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-muted md:col-span-7 md:aspect-auto">
             <Image
               src={heroImage}
-              alt={team.star.name}
+              alt={`${team.star.name} vestindo ${team.name} Home 2026 — editorial Nike`}
               fill
               sizes="(min-width:1024px) 58vw, 100vw"
               className="object-cover"
@@ -176,7 +176,7 @@ export default async function EditorialTeamPage({ params }: PageProps) {
             />
             <div className="absolute inset-y-0 left-0 flex max-w-sm flex-col justify-end p-8 md:p-12">
               <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-turf">
-                Estrela
+                Editorial · {team.code}
               </span>
               <p className="mt-2 font-display text-3xl font-semibold leading-tight text-white md:text-5xl">
                 {team.star.name}
@@ -194,9 +194,9 @@ export default async function EditorialTeamPage({ params }: PageProps) {
               {secondPara}
             </p>
             <div className="mt-10 grid grid-cols-2 gap-5 border-t border-border/70 pt-6">
+              <Stat label="Seleção" value={team.name} />
               <Stat label="Confederação" value={team.confederation} />
-              <Stat label="Licença" value="Nike Official" />
-              <Stat label="Camisa" value={team.star.number.toString()} />
+              <Stat label="Camisa" value={`#${team.star.number}`} />
               <Stat label="Posição" value={team.star.position} />
             </div>
           </div>

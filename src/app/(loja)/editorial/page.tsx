@@ -247,11 +247,9 @@ function ChapterCard({
           >
             {team.tagline}
           </p>
-          {editorialCount > 0 && (
-            <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/55">
-              Estrela · {team.star.name}
-            </p>
-          )}
+          <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/55">
+            {totalImages} {totalImages === 1 ? "imagem" : "imagens"} · Home + Away
+          </p>
         </div>
         <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur transition group-hover:bg-turf group-hover:border-turf group-hover:text-turf-foreground">
           <ArrowUpRight className="size-5" />

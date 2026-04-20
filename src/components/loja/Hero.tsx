@@ -97,7 +97,7 @@ export function Hero() {
               <div className="relative col-span-8 row-span-6 overflow-hidden rounded-3xl bg-muted">
                 <Image
                   src={HERO_IMAGE}
-                  alt="Camisa Brasil Copa 2026 - Vini Jr"
+                  alt="Camisa oficial Brasil Home 2026 — editorial Nike"
                   fill
                   priority
                   sizes="(min-width:1024px) 50vw, 100vw"
@@ -110,14 +110,14 @@ export function Hero() {
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-5 sm:p-6">
                   <div>
                     <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/80">
-                      Capa · Edição Brasil
+                      Editorial Nike · Brasil Home 2026
                     </p>
                     <p className="mt-1 font-display text-xl font-semibold text-white">
-                      Vini Jr · 20
+                      Vini Jr
                     </p>
                   </div>
                   <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
-                    Home
+                    #20
                   </span>
                 </div>
               </div>
@@ -126,13 +126,13 @@ export function Hero() {
               <div className="relative col-span-4 row-span-3 overflow-hidden rounded-3xl bg-muted">
                 <Image
                   src={HERO_ALT_IMAGE}
-                  alt="Kylian Mbappé - França"
+                  alt="Camisa oficial França Home 2026 — editorial Nike"
                   fill
                   sizes="(min-width:1024px) 16vw, 33vw"
                   className="object-cover"
                 />
                 <div className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium backdrop-blur">
-                  🇫🇷 Mbappé
+                  🇫🇷 FRA
                 </div>
               </div>
 

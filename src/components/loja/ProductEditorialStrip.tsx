@@ -25,14 +25,14 @@ export function ProductEditorialStrip({
       <div className="mb-8 flex items-end justify-between gap-6">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-turf">
-            Visto em campo
+            Editorial · Oficial Nike
           </p>
           <h3 className="mt-2 font-display text-3xl font-semibold tracking-tight md:text-5xl">
             {team ? (
               <>
-                {team.star.name}{" "}
+                {team.shortName}{" "}
                 <span className="italic font-editorial font-normal">
-                  veste {team.code}.
+                  em campo.
                 </span>
               </>
             ) : (
@@ -41,7 +41,7 @@ export function ProductEditorialStrip({
           </h3>
           {team && (
             <p className="mt-3 max-w-md text-sm text-muted-foreground">
-              {team.tagline} Editorial oficial Nike.
+              {team.tagline} Imagens da campanha oficial Nike 2026.
             </p>
           )}
         </div>
@@ -79,6 +79,14 @@ function StatGrid({ team }: { team: TeamMeta }) {
     <dl className="hidden shrink-0 grid-cols-3 gap-4 md:grid">
       <div>
         <dt className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Estrela
+        </dt>
+        <dd className="mt-1 font-display text-lg font-semibold leading-tight">
+          {team.star.name}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Número
         </dt>
         <dd className="mt-1 font-display text-3xl font-semibold tabular-nums">
@@ -91,14 +99,6 @@ function StatGrid({ team }: { team: TeamMeta }) {
         </dt>
         <dd className="mt-1 font-display text-3xl font-semibold">
           {team.star.position}
-        </dd>
-      </div>
-      <div>
-        <dt className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Confed.
-        </dt>
-        <dd className="mt-1 font-display text-xs font-semibold uppercase tracking-wider pt-3">
-          {team.confederation}
         </dd>
       </div>
     </dl>

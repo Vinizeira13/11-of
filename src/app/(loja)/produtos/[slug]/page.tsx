@@ -249,22 +249,21 @@ export default async function ProductPage(
               {team && (
                 <div className="rounded-2xl border border-border/80 bg-card/40 p-5">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-turf">
-                    Capitão do drop
+                    {team.code} · {team.confederation}
                   </p>
-                  <div className="mt-2 flex items-baseline gap-3">
-                    <span className="font-display text-2xl font-semibold">
-                      {team.star.name}
-                    </span>
-                    <span className="font-mono text-lg text-muted-foreground tabular-nums">
-                      #{team.star.number}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {team.star.position}
-                    </span>
-                  </div>
+                  <p className="mt-2 font-display text-xl font-semibold leading-tight">
+                    {team.name}
+                  </p>
                   <p className="mt-2 text-xs text-muted-foreground font-editorial italic">
                     &ldquo;{team.tagline}&rdquo;
                   </p>
+                  <div className="mt-4 flex items-center gap-3 border-t border-border/70 pt-3 text-xs">
+                    <span className="text-muted-foreground">Em campo</span>
+                    <span className="font-semibold">{team.star.name}</span>
+                    <span className="font-mono text-muted-foreground tabular-nums">
+                      #{team.star.number} · {team.star.position}
+                    </span>
+                  </div>
                 </div>
               )}
 

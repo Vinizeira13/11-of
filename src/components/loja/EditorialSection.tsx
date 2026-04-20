@@ -104,12 +104,22 @@ function EditorialTile({
       />
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/70">
-            {data.team?.flag} {data.team?.shortName ?? "Seleção"}
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-turf">
+            {data.team
+              ? `${data.team.flag} ${data.team.shortName} · ${data.team.code}`
+              : "EDITORIAL"}
           </p>
-          <p className="mt-1 font-display text-lg font-semibold text-white md:text-2xl">
-            {data.team?.star.name ?? data.product.name}
-          </p>
+          {data.team?.star && (
+            <p className="mt-1 font-display text-lg font-semibold leading-tight text-white md:text-2xl">
+              {data.team.star.name}
+              <span className="text-turf/80"> · #{data.team.star.number}</span>
+            </p>
+          )}
+          {data.team?.tagline && (
+            <p className="mt-1.5 max-w-xs font-editorial italic text-sm text-white/75 md:text-base">
+              {data.team.tagline}
+            </p>
+          )}
         </div>
         <span className="inline-flex size-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur transition group-hover:bg-turf group-hover:border-turf group-hover:text-turf-foreground">
           <ArrowUpRight className="size-4" />
