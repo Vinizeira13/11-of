@@ -12,61 +12,48 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createPixCharge } from "@/lib/pague/client";
 
 const formSchema = z.object({
-  email: z.string().email("Email inválido."),
-  name: z.string().trim().min(3, "Informe o nome completo."),
+  email: z.string().email("Falta o @ ou o domínio — ex: voce@gmail.com."),
+  name: z
+    .string()
+    .trim()
+    .refine((v) => v.split(/\s+/).length >= 2, "Nome e sobrenome, como no RG."),
   cpf: z
     .string()
     .transform(cpfDigitsOnly)
-    .refine((v) => v.length === 11, "CPF inválido.")
-    .refine(isValidCPF, "CPF inválido."),
+    .refine((v) => v.length === 11, "CPF tem 11 dígitos.")
+    .refine(isValidCPF, "Os dígitos não batem — confira o CPF."),
   phone: z
     .string()
     .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v.length >= 10 && v.length <= 11, "Telefone inválido."),
+    .refine(
+      (v) => v.length >= 10 && v.length <= 11,
+      "Número incompleto — DDD + 9 dígitos do celular.",
+    ),
   cep: z
     .string()
     .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v.length === 8, "CEP inválido."),
-  logradouro: z.string().trim().min(1, "Informe o endereço."),
-  numero: z.string().trim().min(1, "Informe o número."),
+    .refine((v) => v.length === 8, "CEP tem 8 dígitos (ex: 01234-567)."),
+  logradouro: z.string().trim().min(1, "Digite a rua ou avenida."),
+  numero: z.string().trim().min(1, "Informe o número (ou 's/n')."),
   complemento: z
     .string()
     .trim()
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
-  bairro: z.string().trim().min(1, "Informe o bairro."),
-  cidade: z.string().trim().min(1, "Informe a cidade."),
+  bairro: z.string().trim().min(1, "Qual o bairro?"),
+  cidade: z.string().trim().min(1, "Qual a cidade?"),
   uf: z
     .string()
     .trim()
     .transform((v) => v.toUpperCase())
-    .refine((v) => v.length === 2, "UF inválida."),
-  // -------- Customer-intent / data-capture extensions --------
+    .refine((v) => v.length === 2, "2 letras (ex: SP, RJ, MG)."),
+  // Optional free-text notes (collapsed field in the UI)
   order_notes: z
     .string()
     .trim()
     .max(500, "Observação grande demais.")
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
-  wants_whatsapp_updates: z
-    .string()
-    .optional()
-    .transform((v) => v === "on"),
-  wants_marketing_email: z
-    .string()
-    .optional()
-    .transform((v) => v === "on"),
-  attribution_source: z
-    .string()
-    .trim()
-    .optional()
-    .transform((v) => (v && v.length > 0 ? v : null)),
-  accept_terms: z
-    .string()
-    .optional()
-    .refine((v) => v === "on", {
-      message: "Você precisa aceitar os termos pra continuar.",
-    }),
 });
 
 export type CheckoutFormState = {
@@ -160,9 +147,10 @@ export async function createOrderAction(
       status: "pending",
       payment_status: "pending",
       order_notes: data.order_notes,
-      wants_whatsapp_updates: data.wants_whatsapp_updates,
-      wants_marketing_email: data.wants_marketing_email,
-      attribution_source: data.attribution_source,
+      // Terms consent is implicit via the pay CTA (see inline footer copy).
+      // WhatsApp opt-in default true since we now collect phone anyway.
+      wants_whatsapp_updates: true,
+      wants_marketing_email: false,
     })
     .select("id, short_code")
     .single();

@@ -1,13 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Minus, Plus, Tag, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import { FreeShippingBar } from "./FreeShippingBar";
 import { CheckoutDeliveryEta } from "./CheckoutDeliveryEta";
 import {
@@ -225,10 +223,6 @@ export function CheckoutSummary({
           <p className="mt-3 text-xs text-muted-foreground">
             Pagamento via PIX. QR gerado após confirmar.
           </p>
-
-          <Button asChild variant="ghost" size="sm" className="mt-5 w-full">
-            <Link href="/produtos">← Continuar comprando</Link>
-          </Button>
         </div>
       </div>
     </aside>

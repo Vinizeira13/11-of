@@ -3,19 +3,18 @@
 import {
   useActionState,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useTransition,
 } from "react";
 import {
   Check,
+  ChevronDown,
   Lock,
   Mail,
   MapPin,
-  MessageCircle,
   Phone,
-  Search,
-  Sparkles,
   StickyNote,
   User,
 } from "lucide-react";
@@ -32,18 +31,10 @@ import {
 import {
   InputGroup,
   InputGroupAddon,
-  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -52,6 +43,7 @@ import { isValidCPF, maskCPF } from "@/lib/cpf";
 import { maskCEP, fetchCEP } from "@/lib/cep";
 import { isLikelyValidEmail, suggestEmailFix } from "@/lib/email-hint";
 import { loadDraft, saveDraft } from "@/lib/checkout-draft";
+import { formatBRL } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 function maskPhone(value: string): string {
@@ -66,7 +58,7 @@ function maskPhone(value: string): string {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-/** Green check rendered inside the input when a field has validated. */
+/** Tiny green check rendered inside the input when the field is valid. */
 function OkMark({ show }: { show: boolean }) {
   return (
     <span
@@ -81,10 +73,10 @@ function OkMark({ show }: { show: boolean }) {
   );
 }
 
-export function CheckoutForm() {
+export function CheckoutForm({ totalCents }: { totalCents: number }) {
   const [state, formAction, isPending] = useActionState(createOrderAction, {});
 
-  // Controlled fields (masked or hydrated)
+  // Controlled fields
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -96,24 +88,29 @@ export function CheckoutForm() {
   const [bairro, setBairro] = useState("");
   const [cidade, setCidade] = useState("");
   const [uf, setUf] = useState("");
+  const [notes, setNotes] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
 
-  // Ephemeral UI state
+  // UI state
   const [emailTypo, setEmailTypo] = useState<string | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const [cpfTouched, setCpfTouched] = useState(false);
   const [cepLookupPending, startCepLookup] = useTransition();
+  const emailRef = useRef<HTMLInputElement | null>(null);
   const numeroRef = useRef<HTMLInputElement | null>(null);
   const hydrated = useRef(false);
-  // Customer-intent / upsell fields
-  const [wantsWhatsApp, setWantsWhatsApp] = useState(true);
-  const [wantsMarketing, setWantsMarketing] = useState(true);
-  const [source, setSource] = useState<string>("");
-  const [notes, setNotes] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const lastAutoLookup = useRef<string>("");
 
   const fieldErrors = state.fieldErrors ?? {};
 
-  // ------- Hydrate from localStorage once on mount -------
+  // -------- Auto-focus email on first mount (desktop only, avoid mobile zoom) --------
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      emailRef.current?.focus();
+    }
+  }, []);
+
+  // -------- Hydrate from localStorage once on mount --------
   useEffect(() => {
     if (hydrated.current) return;
     hydrated.current = true;
@@ -128,11 +125,13 @@ export function CheckoutForm() {
     if (d.bairro) setBairro(d.bairro);
     if (d.cidade) setCidade(d.cidade);
     if (d.uf) setUf(d.uf);
-    if (d.notes) setNotes(d.notes);
-    if (d.attribution_source) setSource(d.attribution_source);
+    if (d.notes) {
+      setNotes(d.notes);
+      setNotesOpen(true);
+    }
   }, []);
 
-  // ------- Persist draft on change (debounced by natural re-render cadence) -------
+  // -------- Persist draft on change --------
   useEffect(() => {
     if (!hydrated.current) return;
     saveDraft({
@@ -147,7 +146,6 @@ export function CheckoutForm() {
       cidade,
       uf,
       notes,
-      attribution_source: source,
     });
   }, [
     email,
@@ -161,17 +159,39 @@ export function CheckoutForm() {
     cidade,
     uf,
     notes,
-    source,
   ]);
 
-  // ------- Derived validity -------
+  // -------- Derived validity --------
   const emailValid = emailTouched && isLikelyValidEmail(email);
-  const phoneValid = phone.replace(/\D/g, "").length >= 10;
+  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneValid = phoneDigits.length >= 10;
   const nameValid = name.trim().split(/\s+/).length >= 2;
   const cpfValid = cpfTouched && isValidCPF(cpf);
-  const cpfBadlyFormed = cpfTouched && cpf.replace(/\D/g, "").length === 11 && !cpfValid;
-  const cepValid = cep.replace(/\D/g, "").length === 8;
+  const cpfBadlyFormed =
+    cpfTouched && cpf.replace(/\D/g, "").length === 11 && !cpfValid;
+  const cepDigits = cep.replace(/\D/g, "");
+  const cepValid = cepDigits.length === 8;
+  const addressValid =
+    cepValid &&
+    logradouro.trim().length > 0 &&
+    numero.trim().length > 0 &&
+    bairro.trim().length > 0 &&
+    cidade.trim().length > 0 &&
+    uf.trim().length === 2;
 
+  // -------- Progress % for submit area --------
+  const requiredChecks = [
+    emailValid,
+    phoneValid,
+    nameValid,
+    cpfValid,
+    addressValid,
+  ];
+  const filledCount = requiredChecks.filter(Boolean).length;
+  const totalRequired = requiredChecks.length;
+  const progressPct = Math.round((filledCount / totalRequired) * 100);
+
+  // -------- Email handlers --------
   function handleEmailBlur() {
     setEmailTouched(true);
     const hint = suggestEmailFix(email);
@@ -185,22 +205,44 @@ export function CheckoutForm() {
     toast.success("Email corrigido");
   }
 
-  function handleCepLookup() {
+  // -------- CEP auto-lookup on 8 digits --------
+  async function runCepLookup(raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    if (lastAutoLookup.current === digits) return;
+    lastAutoLookup.current = digits;
+
     startCepLookup(async () => {
-      const result = await fetchCEP(cep);
+      const result = await fetchCEP(digits);
       if (!result) {
-        toast.error("CEP não encontrado.");
+        toast.error("CEP não encontrado — confere os dígitos.");
         return;
       }
       setLogradouro(result.logradouro);
       setBairro(result.bairro);
       setCidade(result.localidade);
       setUf(result.uf);
-      // jump to the next field the user must actually fill
+      toast.success("Endereço encontrado", {
+        description: `${result.localidade} · ${result.uf}`,
+      });
+      // jump to the field that actually needs input
       requestAnimationFrame(() => numeroRef.current?.focus());
-      toast.success("Endereço encontrado", { description: `${result.localidade} · ${result.uf}` });
     });
   }
+
+  function handleCepChange(raw: string) {
+    const masked = maskCEP(raw);
+    setCep(masked);
+    // Auto-lookup the moment we have 8 clean digits
+    if (masked.replace(/\D/g, "").length === 8) {
+      runCepLookup(masked);
+    }
+  }
+
+  const submitLabel = useMemo(() => {
+    if (isPending) return "Gerando PIX…";
+    return `Pagar ${formatBRL(totalCents)} via PIX`;
+  }, [isPending, totalCents]);
 
   return (
     <form action={formAction} className="flex flex-col gap-8">
@@ -220,13 +262,14 @@ export function CheckoutForm() {
             <FieldLabel htmlFor="email">Email</FieldLabel>
             <div className="relative">
               <Input
+                ref={emailRef}
                 id="email"
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
                 aria-invalid={!!fieldErrors.email || undefined}
-                placeholder="voce@email.com"
+                placeholder="voce@gmail.com"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -248,7 +291,9 @@ export function CheckoutForm() {
               </button>
             )}
             <FieldDescription>
-              Enviamos rastreio e atualizações do pedido por aqui.
+              {fieldErrors.email
+                ? null
+                : "Use o email que você checa todo dia — rastreio cai por aqui."}
             </FieldDescription>
             {fieldErrors.email && <FieldError>{fieldErrors.email}</FieldError>}
           </Field>
@@ -257,7 +302,7 @@ export function CheckoutForm() {
             <FieldLabel htmlFor="phone">
               <span className="inline-flex items-center gap-1.5">
                 <Phone className="size-3.5 text-muted-foreground" aria-hidden />
-                Telefone / WhatsApp
+                Celular / WhatsApp
               </span>
             </FieldLabel>
             <div className="relative">
@@ -276,7 +321,9 @@ export function CheckoutForm() {
               <OkMark show={phoneValid} />
             </div>
             <FieldDescription>
-              Se der algum problema, a gente chama direto no WhatsApp.
+              {fieldErrors.phone
+                ? null
+                : "DDD + 9 dígitos. Avisamos do rastreio no WhatsApp."}
             </FieldDescription>
             {fieldErrors.phone && <FieldError>{fieldErrors.phone}</FieldError>}
           </Field>
@@ -299,7 +346,7 @@ export function CheckoutForm() {
                 name="name"
                 required
                 autoComplete="name"
-                placeholder="Como no RG"
+                placeholder="Caio Silva"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 aria-invalid={!!fieldErrors.name || undefined}
@@ -307,6 +354,11 @@ export function CheckoutForm() {
               />
               <OkMark show={nameValid} />
             </div>
+            <FieldDescription>
+              {fieldErrors.name
+                ? null
+                : "Nome e sobrenome, igual no RG — sai na nota fiscal."}
+            </FieldDescription>
             {fieldErrors.name && <FieldError>{fieldErrors.name}</FieldError>}
           </Field>
 
@@ -323,17 +375,24 @@ export function CheckoutForm() {
                 value={cpf}
                 onChange={(e) => setCpf(maskCPF(e.target.value))}
                 onBlur={() => setCpfTouched(true)}
-                aria-invalid={!!fieldErrors.cpf || cpfBadlyFormed || undefined}
+                aria-invalid={
+                  !!fieldErrors.cpf || cpfBadlyFormed || undefined
+                }
                 className={cn(cpfValid && "pr-10")}
               />
               <OkMark show={cpfValid} />
             </div>
             <FieldDescription>
-              {cpfBadlyFormed
-                ? "CPF parece inválido — confere os dígitos."
-                : "Exigido pela operadora PIX."}
+              {fieldErrors.cpf || cpfBadlyFormed
+                ? null
+                : "11 dígitos sem pontos. Exigido pra emitir o PIX."}
             </FieldDescription>
-            {fieldErrors.cpf && <FieldError>{fieldErrors.cpf}</FieldError>}
+            {(fieldErrors.cpf || cpfBadlyFormed) && (
+              <FieldError>
+                {fieldErrors.cpf ??
+                  "Os dígitos não batem — confira o CPF."}
+              </FieldError>
+            )}
           </Field>
         </FieldGroup>
       </FieldSet>
@@ -357,29 +416,38 @@ export function CheckoutForm() {
                 autoComplete="postal-code"
                 placeholder="00000-000"
                 value={cep}
-                onChange={(e) => setCep(maskCEP(e.target.value))}
+                onChange={(e) => handleCepChange(e.target.value)}
                 aria-invalid={!!fieldErrors.cep || undefined}
               />
               <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  type="button"
-                  onClick={handleCepLookup}
-                  disabled={!cepValid || cepLookupPending}
-                >
-                  <Search data-icon="inline-start" />
-                  {cepLookupPending ? "Buscando…" : "Buscar"}
-                </InputGroupButton>
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                  {cepLookupPending ? (
+                    "Buscando…"
+                  ) : cepValid && cidade ? (
+                    <>
+                      <Check className="size-3 text-turf" aria-hidden />
+                      ok
+                    </>
+                  ) : (
+                    "auto-busca"
+                  )}
+                </span>
               </InputGroupAddon>
             </InputGroup>
             <FieldDescription>
-              <a
-                href="https://buscacepinter.correios.com.br/app/endereco/index.php"
-                target="_blank"
-                rel="noopener"
-                className="underline underline-offset-2 hover:text-foreground"
-              >
-                Não sei meu CEP
-              </a>
+              {fieldErrors.cep
+                ? null
+                : "8 dígitos. Buscamos o endereço automaticamente. "}
+              {!fieldErrors.cep && (
+                <a
+                  href="https://buscacepinter.correios.com.br/app/endereco/index.php"
+                  target="_blank"
+                  rel="noopener"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  Não sei meu CEP
+                </a>
+              )}
             </FieldDescription>
             {fieldErrors.cep && <FieldError>{fieldErrors.cep}</FieldError>}
           </Field>
@@ -391,13 +459,17 @@ export function CheckoutForm() {
               name="logradouro"
               required
               autoComplete="address-line1"
-              placeholder="Rua, avenida…"
+              placeholder="Rua, avenida, travessa…"
               value={logradouro}
               onChange={(e) => setLogradouro(e.target.value)}
               aria-invalid={!!fieldErrors.logradouro || undefined}
             />
-            {fieldErrors.logradouro && (
+            {fieldErrors.logradouro ? (
               <FieldError>{fieldErrors.logradouro}</FieldError>
+            ) : (
+              <FieldDescription>
+                Preenchido automaticamente pelo CEP — confira se tá certo.
+              </FieldDescription>
             )}
           </Field>
 
@@ -415,7 +487,11 @@ export function CheckoutForm() {
                 onChange={(e) => setNumero(e.target.value)}
                 aria-invalid={!!fieldErrors.numero || undefined}
               />
-              {fieldErrors.numero && <FieldError>{fieldErrors.numero}</FieldError>}
+              {fieldErrors.numero ? (
+                <FieldError>{fieldErrors.numero}</FieldError>
+              ) : (
+                <FieldDescription>Use 's/n' se for sem número.</FieldDescription>
+              )}
             </Field>
             <Field>
               <FieldLabel htmlFor="complemento">Complemento</FieldLabel>
@@ -423,10 +499,11 @@ export function CheckoutForm() {
                 id="complemento"
                 name="complemento"
                 autoComplete="address-line2"
-                placeholder="Apto, bloco… (opcional)"
+                placeholder="Apto, bloco, referência…"
                 value={complemento}
                 onChange={(e) => setComplemento(e.target.value)}
               />
+              <FieldDescription>Opcional.</FieldDescription>
             </Field>
           </div>
 
@@ -470,160 +547,82 @@ export function CheckoutForm() {
                 onChange={(e) => setUf(e.target.value.toUpperCase())}
                 aria-invalid={!!fieldErrors.uf || undefined}
               />
-              {fieldErrors.uf && <FieldError>{fieldErrors.uf}</FieldError>}
+              {fieldErrors.uf ? (
+                <FieldError>{fieldErrors.uf}</FieldError>
+              ) : (
+                <FieldDescription>Ex: SP, RJ, MG.</FieldDescription>
+              )}
             </Field>
           </div>
         </FieldGroup>
       </FieldSet>
 
-      <Separator />
-
-      <FieldSet>
-        <FieldLegend className="flex items-center gap-2">
-          <StickyNote className="size-4 text-turf" aria-hidden />
-          Observações <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
-        </FieldLegend>
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="order_notes" className="sr-only">
+      {/* Notes: collapsed by default — most buyers don't need it */}
+      <div className="-mt-2">
+        {notesOpen ? (
+          <FieldSet>
+            <FieldLegend className="flex items-center gap-2">
+              <StickyNote className="size-4 text-turf" aria-hidden />
               Observações
-            </FieldLabel>
-            <Textarea
-              id="order_notes"
-              name="order_notes"
-              rows={3}
-              maxLength={500}
-              placeholder="Ex: camisa pra presente, ligar no WhatsApp antes de entregar, prefiro receber de tarde…"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-            <FieldDescription>
-              {notes.length}/500 — Deixe qualquer observação ou pedido especial
-              pra o atendimento.
-            </FieldDescription>
-          </Field>
-        </FieldGroup>
-      </FieldSet>
-
-      <Separator />
-
-      <FieldSet>
-        <FieldLegend className="flex items-center gap-2">
-          <Sparkles className="size-4 text-turf" aria-hidden />
-          Contato & preferências
-        </FieldLegend>
-        <FieldGroup>
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 bg-card/40 p-3 transition hover:border-foreground/50">
-            <input
-              type="checkbox"
-              name="wants_whatsapp_updates"
-              checked={wantsWhatsApp}
-              onChange={(e) => setWantsWhatsApp(e.target.checked)}
-              className="mt-0.5 size-4 cursor-pointer accent-turf"
-            />
-            <div className="flex-1 text-sm">
-              <p className="font-medium inline-flex items-center gap-1.5">
-                <MessageCircle className="size-3.5 text-turf" aria-hidden />
-                Rastreio no WhatsApp
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                A gente te chama no número cadastrado com cada atualização do
-                pedido — postagem, saiu pra entrega, recebido.
-              </p>
-            </div>
-          </label>
-
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 bg-card/40 p-3 transition hover:border-foreground/50">
-            <input
-              type="checkbox"
-              name="wants_marketing_email"
-              checked={wantsMarketing}
-              onChange={(e) => setWantsMarketing(e.target.checked)}
-              className="mt-0.5 size-4 cursor-pointer accent-turf"
-            />
-            <div className="flex-1 text-sm">
-              <p className="font-medium">
-                Quero saber dos próximos drops antes de todo mundo
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                1-2 emails por mês. Cancela quando quiser (um clique).
-              </p>
-            </div>
-          </label>
-
-          <Field>
-            <FieldLabel htmlFor="attribution_source">
-              Como você nos encontrou?{" "}
-              <span className="font-normal text-muted-foreground">
-                (opcional)
-              </span>
-            </FieldLabel>
-            <Select value={source} onValueChange={setSource}>
-              <SelectTrigger id="attribution_source">
-                <SelectValue placeholder="Escolhe aí…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="instagram">Instagram</SelectItem>
-                <SelectItem value="tiktok">TikTok</SelectItem>
-                <SelectItem value="google">Google / pesquisa</SelectItem>
-                <SelectItem value="amigo">Indicação de amigo</SelectItem>
-                <SelectItem value="youtube">YouTube</SelectItem>
-                <SelectItem value="twitter">Twitter / X</SelectItem>
-                <SelectItem value="outro">Outro lugar</SelectItem>
-              </SelectContent>
-            </Select>
-            {/* Hidden input so the value reaches the FormData submission */}
-            <input type="hidden" name="attribution_source" value={source} />
-            <FieldDescription>
-              A gente usa pra saber onde investir na divulgação — não chega em
-              propaganda.
-            </FieldDescription>
-          </Field>
-        </FieldGroup>
-      </FieldSet>
-
-      <div className="flex flex-col gap-3">
-        <label
-          className={cn(
-            "flex cursor-pointer items-start gap-3 rounded-xl border bg-card/40 p-3 text-sm transition",
-            fieldErrors.accept_terms
-              ? "border-destructive/60 bg-destructive/5"
-              : "border-border/70 hover:border-foreground/50",
-          )}
-        >
-          <input
-            type="checkbox"
-            name="accept_terms"
-            required
-            checked={acceptedTerms}
-            onChange={(e) => setAcceptedTerms(e.target.checked)}
-            className="mt-0.5 size-4 cursor-pointer accent-turf"
-          />
-          <span className="flex-1 text-xs leading-relaxed text-muted-foreground">
-            Li e aceito os{" "}
-            <a
-              href="/termos"
-              target="_blank"
-              rel="noopener"
-              className="font-medium text-foreground underline underline-offset-2"
-            >
-              Termos de uso
-            </a>{" "}
-            e a{" "}
-            <a
-              href="/privacidade"
-              target="_blank"
-              rel="noopener"
-              className="font-medium text-foreground underline underline-offset-2"
-            >
-              Política de privacidade
-            </a>
-            . Autorizo o uso dos meus dados pra processar o pedido (LGPD).
-          </span>
-        </label>
-        {fieldErrors.accept_terms && (
-          <FieldError>{fieldErrors.accept_terms}</FieldError>
+              <button
+                type="button"
+                onClick={() => {
+                  setNotesOpen(false);
+                  setNotes("");
+                }}
+                className="ml-auto text-[11px] font-normal text-muted-foreground hover:text-foreground"
+              >
+                remover
+              </button>
+            </FieldLegend>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="order_notes" className="sr-only">
+                  Observações
+                </FieldLabel>
+                <Textarea
+                  id="order_notes"
+                  name="order_notes"
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Camisa pra presente? Ligar antes de entregar? Horário de preferência?"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+                <FieldDescription>
+                  {notes.length}/500 · Qualquer recado pra o atendimento.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNotesOpen(true)}
+            className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+          >
+            <ChevronDown className="size-3.5" />
+            Adicionar observação (opcional)
+          </button>
         )}
+      </div>
+
+      {/* Submit block: progress + CTA + implicit consent */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="font-medium text-muted-foreground">
+            {filledCount}/{totalRequired} preenchido
+          </span>
+          <div
+            className="h-1 w-24 overflow-hidden rounded-full bg-border/60"
+            aria-hidden
+          >
+            <div
+              className="h-full rounded-full bg-turf transition-all duration-500 ease-out"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
 
         <Button
           type="submit"
@@ -631,11 +630,30 @@ export function CheckoutForm() {
           disabled={isPending}
           className="h-12 w-full rounded-full text-base font-medium"
         >
-          {isPending ? "Gerando PIX…" : "Pagar com PIX"}
+          {submitLabel}
         </Button>
-        <p className="inline-flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
-          <Lock className="size-3" aria-hidden />
-          Dados criptografados em trânsito · LGPD · sem criar conta
+
+        <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+          <Lock className="mr-1 inline size-3" aria-hidden />
+          Ao clicar em Pagar você aceita os{" "}
+          <a
+            href="/termos"
+            target="_blank"
+            rel="noopener"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            Termos
+          </a>{" "}
+          e a{" "}
+          <a
+            href="/privacidade"
+            target="_blank"
+            rel="noopener"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            Política de Privacidade
+          </a>{" "}
+          · Dados criptografados · LGPD
         </p>
       </div>
     </form>

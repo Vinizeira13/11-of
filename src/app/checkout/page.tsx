@@ -197,7 +197,7 @@ export default async function CheckoutPage() {
                 email — não precisa criar conta.
               </p>
             </div>
-            <CheckoutForm />
+            <CheckoutForm totalCents={totalCents} />
           </section>
 
           <CheckoutSummary
