@@ -39,7 +39,7 @@ const VALUES = [
 ];
 
 const HERO_BG =
-  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/bra/005_nike-football-2026-federation-kits-brasil-vini-jr.jpg";
+  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/bra/005_nike-football-2026-federation-kits-brasil-vini-jr.webp";
 
 export default function SobrePage() {
   return (

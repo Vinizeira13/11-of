@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { splitImages } from "@/lib/images";
+import { splitImages, BLUR_DATA_URL } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,6 +35,9 @@ export function ProductGallerySplit({
             fill
             sizes="(min-width: 1024px) 50vw, 100vw"
             priority
+            fetchPriority="high"
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URL}
             className="object-cover animate-in fade-in duration-300"
           />
         )}

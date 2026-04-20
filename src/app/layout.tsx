@@ -62,6 +62,20 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${instrumentSerif.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Pre-warm the TLS handshake to the image origin — every product
+            image and editorial photo is served from here, and saving ~150ms
+            on the first fetch compounds across the whole page. */}
+        <link
+          rel="preconnect"
+          href="https://csojptgqkpaghnmeswvn.supabase.co"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="dns-prefetch"
+          href="https://csojptgqkpaghnmeswvn.supabase.co"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-turf selection:text-turf-foreground">
         {children}
         <Toaster position="top-center" richColors theme="dark" />

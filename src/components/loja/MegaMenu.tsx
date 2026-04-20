@@ -7,17 +7,6 @@ import { ChevronDown } from "lucide-react";
 import { TEAMS } from "@/lib/teams";
 import { cn } from "@/lib/utils";
 
-const SLUGS: Record<string, string> = {
-  BRA: "brasil",
-  FRA: "france",
-  ENG: "england",
-  NED: "netherlands",
-  CRO: "croatia",
-  URU: "uruguay",
-  NOR: "norway",
-  CAN: "canada",
-};
-
 export function MegaMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -103,8 +92,8 @@ export function MegaMenu() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {TEAMS.slice(0, 8).map((team, i) => (
+          <div className="grid max-h-[64vh] grid-cols-2 gap-3 overflow-y-auto pr-1 md:grid-cols-4">
+            {TEAMS.map((team, i) => (
               <MegaMenuCard
                 key={team.code}
                 team={team}
@@ -128,9 +117,6 @@ function MegaMenuCard({
   priority?: boolean;
   onSelect?: () => void;
 }) {
-  const code = team.code.toLowerCase();
-  const img = `https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/${code}/002_nike-football-2026-federation-kits-${SLUGS[team.code] ?? code}-home-1.jpg`;
-
   return (
     <Link
       href={`/produtos/${team.slug}`}
@@ -139,7 +125,7 @@ function MegaMenuCard({
     >
       <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
         <Image
-          src={img}
+          src={team.thumbUrl}
           alt={team.shortName}
           fill
           sizes="220px"

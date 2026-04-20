@@ -8,11 +8,13 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   images: {
+    // Route every <Image> through our Supabase Render loader — serves
+    // resized + quality-compressed variants straight from Supabase's CDN
+    // (Fastly). Works in dev and prod without the Vercel optimizer.
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30,
-    // Skip the Next optimizer in dev (Supabase originals are 1-2MB and the
-    // optimizer was timing out). Vercel's CDN optimization kicks in in prod.
-    unoptimized: !isProd,
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "*.supabase.co" },

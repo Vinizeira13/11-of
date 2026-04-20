@@ -20,5 +20,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...productRoutes];
+  const editorialRoutes: MetadataRoute.Sitemap = products.map((p) => ({
+    url: `${SITE_URL}/editorial/${p.slug}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
+
+  return [...staticRoutes, ...productRoutes, ...editorialRoutes];
 }

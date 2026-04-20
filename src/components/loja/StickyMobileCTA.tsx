@@ -35,7 +35,6 @@ export function StickyMobileCTA({
   }
 
   const pixCents = Math.round(priceCents * (1 - PIX_DISCOUNT_PCT / 100));
-  const hasOldPrice = compareAtCents && compareAtCents > priceCents;
 
   return (
     <div
@@ -48,11 +47,6 @@ export function StickyMobileCTA({
             <span className="text-lg font-semibold leading-none tabular-nums">
               {formatBRL(priceCents)}
             </span>
-            {hasOldPrice && (
-              <span className="text-[11px] text-muted-foreground line-through">
-                {formatBRL(compareAtCents!)}
-              </span>
-            )}
           </p>
           <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-turf">
             <Zap className="size-3" />

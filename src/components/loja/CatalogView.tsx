@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback, useTransition } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { ArrowDownUp, Check, Filter, X } from "lucide-react";
+import { ArrowDownUp, Check, Filter, Star, X } from "lucide-react";
 import type { Product } from "@/lib/catalog";
-import { TEAMS, CONFEDERATIONS, teamBySlug } from "@/lib/teams";
+import { TEAMS, CONFEDERATIONS, teamBySlug, teamByCode } from "@/lib/teams";
+import { useFavoriteTeam } from "@/lib/favorite-team";
 import { ProductCard } from "./ProductCard";
 import { MidBanner } from "./MidBanner";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,9 @@ export function CatalogView({ products }: { products: Product[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const { code: favoriteCode, set: setFavorite, mounted: favMounted } =
+    useFavoriteTeam();
+  const favoriteTeam = favoriteCode ? teamByCode(favoriteCode) : undefined;
 
   const [confs, setConfs] = useState<string[]>(() =>
     parseConfs(searchParams.get("conf")),
@@ -98,8 +103,24 @@ export function CatalogView({ products }: { products: Product[] }) {
       if (sort === "name") return a.name.localeCompare(b.name);
       return 0;
     });
+    // When the user has picked a favorite team and is on the default
+    // "featured" sort, bubble the favorite's home + away products to the top.
+    // Only kick in after the hook has mounted to avoid hydration mismatch.
+    if (favMounted && favoriteTeam && sort === "featured") {
+      list.sort((a, b) => {
+        const aIsFav = teamBySlug(a.slug)?.code === favoriteTeam.code ? 0 : 1;
+        const bIsFav = teamBySlug(b.slug)?.code === favoriteTeam.code ? 0 : 1;
+        return aIsFav - bIsFav;
+      });
+    }
     return list;
-  }, [products, confs, sizeFilter, inStockOnly, sort]);
+  }, [products, confs, sizeFilter, inStockOnly, sort, favMounted, favoriteTeam]);
+
+  const isFavoriteProduct = useCallback(
+    (slug: string) =>
+      !!favoriteTeam && teamBySlug(slug)?.code === favoriteTeam.code,
+    [favoriteTeam],
+  );
 
   const sizes = ["P", "M", "G", "GG"] as const;
 
@@ -125,6 +146,43 @@ export function CatalogView({ products }: { products: Product[] }) {
 
   return (
     <div>
+      {/* Favorite team banner — surfaces the TeamPicker selection. Clickable
+          pill mobile-first, desktop expands to a row with a "trocar" link. */}
+      {favMounted && favoriteTeam && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-turf/30 bg-gradient-to-r from-turf/[0.12] via-turf/[0.05] to-transparent px-4 py-3">
+          <span className="inline-flex size-9 items-center justify-center rounded-full bg-turf text-turf-foreground">
+            <Star className="size-4 fill-current" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-turf">
+              Sua seleção
+            </p>
+            <p className="mt-0.5 text-sm font-semibold leading-tight">
+              <span aria-hidden className="mr-1.5">
+                {favoriteTeam.flag}
+              </span>
+              {favoriteTeam.shortName} está em destaque no topo da lista.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href={`/produtos/${favoriteTeam.slug}`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-turf px-4 py-2 text-xs font-semibold text-turf-foreground transition hover:bg-turf/90"
+            >
+              Ver camisa {favoriteTeam.shortName}
+            </Link>
+            <button
+              type="button"
+              onClick={() => setFavorite(null)}
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition"
+              aria-label="Remover seleção favorita"
+            >
+              Trocar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="sticky top-16 z-30 -mx-6 border-y border-border/60 bg-background/85 px-6 py-3 backdrop-blur-xl md:mx-0 md:rounded-xl md:border md:px-5">
         <div className="flex items-center justify-between gap-3">
@@ -320,28 +378,36 @@ export function CatalogView({ products }: { products: Product[] }) {
         <>
           <p className="mt-6 text-xs text-muted-foreground">
             {filtered.length}{" "}
-            {filtered.length === 1 ? "camisa" : "camisas"} · atualizado em
-            tempo real
+            {filtered.length === 1 ? "camisa" : "camisas"}
           </p>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
             {firstHalf.map((p, i) => (
-              <ProductCard key={p.id} product={p} priority={i < 4} />
+              <ProductCard
+                key={p.id}
+                product={p}
+                priority={i < 4}
+                isFavorite={isFavoriteProduct(p.slug)}
+              />
             ))}
           </div>
           {secondHalf.length > 0 && (
             <>
               <div className="my-14">
                 <MidBanner
-                  kicker="Drop · Abril"
-                  title="A parte que ninguém conta."
-                  subtitle="Primeiros 100 pedidos recebem patch de coleção exclusivo 11 Of. Já vai."
+                  kicker="Coleção 2026"
+                  title="Esgotou, acabou."
+                  subtitle="Tiragem fechada por seleção, sem reposição. Confere o estoque do teu tamanho antes que alguém leve a última."
                   cta="Ver Seleção Brasileira"
                   href="/produtos/camisa-brasil-home-2026"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
                 {secondHalf.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    isFavorite={isFavoriteProduct(p.slug)}
+                  />
                 ))}
               </div>
             </>

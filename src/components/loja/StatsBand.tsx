@@ -1,5 +1,10 @@
+import { TEAMS } from "@/lib/teams";
+
 const STATS = [
-  { value: "08", label: "Seleções oficiais" },
+  {
+    value: String(TEAMS.length).padStart(2, "0"),
+    label: "Seleções oficiais",
+  },
   { value: "24h", label: "Despacho garantido" },
   { value: "15%", label: "OFF no PIX" },
   { value: "100%", label: "Nike autenticidade" },

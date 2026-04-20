@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
 const BG =
-  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/eng/007_nike-football-2026-federation-kits-england-home-cole-palmer.jpg";
+  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/eng/007_nike-football-2026-federation-kits-england-home-cole-palmer.webp";
 
 export function Manifesto() {
   return (
@@ -32,7 +32,7 @@ export function Manifesto() {
           <h2 className="mt-4 max-w-3xl font-display text-5xl font-semibold leading-[0.95] tracking-tight md:text-7xl">
             Onze de linha.{" "}
             <span className="italic font-editorial font-normal text-foreground/75">
-              Cento e trinta e duas seleções. Um torneio. Uma coleção.
+              Dezesseis seleções oficiais. Um torneio. Uma coleção.
             </span>
           </h2>
           <p className="mt-6 max-w-lg text-sm leading-relaxed text-foreground/75 md:text-base">

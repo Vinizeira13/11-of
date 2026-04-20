@@ -17,19 +17,6 @@ import { BrandMark } from "./BrandMark";
 import { PIX_DISCOUNT_PCT } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
-const teamImage = (code: string, country: string) =>
-  `https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/${code.toLowerCase()}/002_nike-football-2026-federation-kits-${country}-home-1.jpg`;
-
-const SLUGS: Record<string, string> = {
-  BRA: "brasil",
-  FRA: "france",
-  ENG: "england",
-  NED: "netherlands",
-  CRO: "croatia",
-  URU: "uruguay",
-  NOR: "norway",
-  CAN: "canada",
-};
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -104,7 +91,7 @@ export function MobileNav() {
                   >
                     <div className="relative size-12 flex-none overflow-hidden rounded-lg bg-muted">
                       <Image
-                        src={teamImage(t.code, SLUGS[t.code] ?? t.code.toLowerCase())}
+                        src={t.thumbUrl}
                         alt=""
                         fill
                         sizes="48px"

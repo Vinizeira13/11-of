@@ -5,12 +5,13 @@ import { CountdownTimer } from "@/components/loja/CountdownTimer";
 import { RevealText } from "@/components/loja/animations/RevealText";
 import { MaskReveal } from "@/components/loja/animations/MaskReveal";
 import { PIX_DISCOUNT_PCT, WORLD_CUP_OPENING } from "@/lib/brand";
+import { TEAMS } from "@/lib/teams";
 
 const HERO_IMAGE =
-  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/bra/005_nike-football-2026-federation-kits-brasil-vini-jr.jpg";
+  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/bra/005_nike-football-2026-federation-kits-brasil-vini-jr.webp";
 
 const HERO_ALT_IMAGE =
-  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/fra/015_nike-football-2026-federation-kits-france-kylian-mbappe.jpg";
+  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/fra/015_nike-football-2026-federation-kits-france-kylian-mbappe.webp";
 
 export function Hero() {
   return (
@@ -47,8 +48,8 @@ export function Hero() {
 
           <MaskReveal direction="up" delay={0.8}>
             <p className="mt-8 max-w-md text-base leading-relaxed text-foreground/70">
-              Oito seleções. Uma coleção oficial Nike. Tiragem controlada,
-              despacho em 24h. Pague no PIX e ganhe{" "}
+              {TEAMS.length} seleções, home e away. Coleção oficial Nike,
+              tiragem controlada, despacho em 24h. Pague no PIX e ganhe{" "}
               <span className="font-semibold text-foreground">
                 {PIX_DISCOUNT_PCT}% OFF
               </span>
@@ -142,14 +143,16 @@ export function Hero() {
                     Seleções
                   </p>
                   <p className="mt-1 font-display text-4xl font-semibold tabular-nums">
-                    08
+                    {String(TEAMS.length).padStart(2, "0")}
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                     Categorias
                   </p>
-                  <p className="mt-0.5 text-sm font-medium">Home · Oficial Nike</p>
+                  <p className="mt-0.5 text-sm font-medium">
+                    Home & Away · Oficial Nike
+                  </p>
                 </div>
                 <p className="text-[10px] leading-snug text-muted-foreground">
                   Tiragem controlada. Quando esgotar, acabou.

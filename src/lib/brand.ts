@@ -5,7 +5,7 @@ export const BRAND_NAME = "11 Of";
 export const BRAND_NAME_FULL = "Eleven Of";
 export const BRAND_TAGLINE = "As camisas oficiais da Copa 2026.";
 export const BRAND_MANIFESTO =
-  "Onze de linha. Cento e trinta e duas seleções. Um torneio. Uma coleção.";
+  "Onze de linha. Dezesseis seleções oficiais. Um torneio. Uma coleção.";
 export const SUPPORT_EMAIL = "contato@11of.com.br";
 export const WHATSAPP = "+5511999999999";
 export const SITE_URL =

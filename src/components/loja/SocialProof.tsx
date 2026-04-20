@@ -28,8 +28,8 @@ export function SocialProof() {
         <Clock className="size-3" />
         <span className="text-foreground/85">
           {isOpen
-            ? "Despachando agora"
-            : "Pedido entra na fila da manhã"}
+            ? "Loja aberta · despacho hoje até 15h"
+            : "Pedidos saem no próximo dia útil"}
         </span>
       </span>
       <span className="inline-flex items-center gap-1.5 rounded-full border border-turf/40 bg-turf/10 px-2.5 py-1 font-medium text-turf">

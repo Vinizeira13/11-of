@@ -2,7 +2,7 @@ import { ShieldCheck, Truck, Lock, Zap, Package } from "lucide-react";
 
 const ROWS = [
   { icon: ShieldCheck, label: "Nike licenciado", sub: "Distribuidor autorizado" },
-  { icon: Zap, label: "PIX oficial", sub: "Processado via pague.dev" },
+  { icon: Zap, label: "PIX aprovado na hora", sub: "Pagamento instantâneo Banco Central" },
   { icon: Truck, label: "Correios + Jadlog", sub: "Despacho em 24h úteis" },
   { icon: Package, label: "Troca grátis", sub: "7 dias após recebimento" },
   { icon: Lock, label: "Compra segura", sub: "TLS 1.3 · dados criptografados" },

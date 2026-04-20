@@ -55,12 +55,6 @@ export default async function ProductPage(
 
   const totalStock = product.variants.reduce((s, v) => s + v.stockQty, 0);
   const isSoldOut = totalStock === 0;
-  const hasDiscount =
-    product.compareAtCents !== null &&
-    product.compareAtCents > product.priceCents;
-  const discountPct = hasDiscount
-    ? Math.round((1 - product.priceCents / product.compareAtCents!) * 100)
-    : 0;
 
   const team = teamBySlug(product.slug);
   const categoryLabel = team ? team.name : product.category;
@@ -188,16 +182,9 @@ export default async function ProductPage(
                   <span className="font-display text-3xl font-semibold tabular-nums">
                     {formatBRL(product.priceCents)}
                   </span>
-                  {hasDiscount && (
-                    <>
-                      <span className="text-base text-muted-foreground line-through tabular-nums">
-                        {formatBRL(product.compareAtCents!)}
-                      </span>
-                      <span className="rounded-full bg-turf px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-turf-foreground">
-                        −{discountPct}%
-                      </span>
-                    </>
-                  )}
+                  <span className="text-xs font-medium text-muted-foreground">
+                    à vista em cartão ou boleto
+                  </span>
                 </div>
 
                 <div className="rounded-xl border border-turf/40 bg-turf/10 px-4 py-3">

@@ -17,19 +17,6 @@ import {
 } from "@/lib/favorite-team";
 import { cn } from "@/lib/utils";
 
-const SLUGS: Record<string, string> = {
-  BRA: "brasil",
-  FRA: "france",
-  ENG: "england",
-  NED: "netherlands",
-  CRO: "croatia",
-  URU: "uruguay",
-  NOR: "norway",
-  CAN: "canada",
-};
-
-const teamImage = (code: string) =>
-  `https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/${code.toLowerCase()}/002_nike-football-2026-federation-kits-${SLUGS[code] ?? code.toLowerCase()}-home-1.jpg`;
 
 const SCROLL_THRESHOLD = 900;
 const TIMEOUT_MS = 45_000;
@@ -127,7 +114,7 @@ export function TeamPicker() {
               >
                 <div className="relative aspect-[3/4]">
                   <Image
-                    src={teamImage(t.code)}
+                    src={t.thumbUrl}
                     alt={t.shortName}
                     fill
                     sizes="180px"

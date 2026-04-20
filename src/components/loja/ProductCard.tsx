@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Truck } from "lucide-react";
 import type { Product } from "@/lib/catalog";
-import { splitImages, pickBackImage } from "@/lib/images";
-import { teamBySlug } from "@/lib/teams";
+import { splitImages, pickBackImage, BLUR_DATA_URL } from "@/lib/images";
+import { teamBySlug, kitFromSlug } from "@/lib/teams";
 import { formatBRL } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { FREE_SHIPPING_THRESHOLD_CENTS, PIX_DISCOUNT_PCT } from "@/lib/brand";
@@ -12,9 +12,12 @@ import { WishlistButton } from "./WishlistButton";
 export function ProductCard({
   product,
   priority = false,
+  isFavorite = false,
 }: {
   product: Product;
   priority?: boolean;
+  /** When true, renders a "Sua seleção" chip to surface the favorite-team pick. */
+  isFavorite?: boolean;
 }) {
   const totalStock = product.variants.reduce((s, v) => s + v.stockQty, 0);
   const isSoldOut = totalStock === 0;
@@ -24,12 +27,6 @@ export function ProductCard({
   const front = productShots[0] ?? product.images[0];
   const back = pickBackImage(product.images) ?? front;
 
-  const hasDiscount =
-    product.compareAtCents !== null &&
-    product.compareAtCents > product.priceCents;
-  const discountPct = hasDiscount
-    ? Math.round((1 - product.priceCents / product.compareAtCents!) * 100)
-    : 0;
   const hasFreeShipping = product.priceCents >= FREE_SHIPPING_THRESHOLD_CENTS;
   const pixCents = Math.round(
     product.priceCents * (1 - PIX_DISCOUNT_PCT / 100),
@@ -59,6 +56,8 @@ export function ProductCard({
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
             priority={priority}
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URL}
             className={cn(
               "object-cover transition-all duration-700 group-hover:opacity-0 group-hover:scale-[1.02]",
               isSoldOut && "opacity-60",
@@ -70,6 +69,9 @@ export function ProductCard({
             aria-hidden
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+            loading="lazy"
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URL}
             className={cn(
               "object-cover opacity-0 transition-all duration-700 group-hover:opacity-100 group-hover:scale-[1.02]",
               isSoldOut && "group-hover:opacity-40",
@@ -77,16 +79,23 @@ export function ProductCard({
           />
 
           {team && (
-            <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
-              <span aria-hidden>{team.flag}</span>
-              {team.code}
+            <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
+                <span aria-hidden>{team.flag}</span>
+                {team.code}
+              </div>
+              {isFavorite && (
+                <div className="inline-flex items-center gap-1 rounded-full bg-turf px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-turf-foreground shadow-lg">
+                  ★ Sua seleção
+                </div>
+              )}
             </div>
           )}
 
           <div className="absolute bottom-14 left-3 flex flex-wrap gap-1.5">
-            {hasDiscount && !isSoldOut && (
+            {!isSoldOut && (
               <span className="rounded-full bg-turf px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-turf-foreground">
-                −{discountPct}%
+                PIX −{PIX_DISCOUNT_PCT}%
               </span>
             )}
             {isLowStock && (
@@ -114,23 +123,24 @@ export function ProductCard({
           </div>
         </div>
 
-        <div className="mt-3.5 flex items-start justify-between gap-3">
+        {/* Mobile: stack name/subtitle above price row.
+            Desktop: keep name+price side-by-side for density. */}
+        <div className="mt-3.5 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium tracking-tight">
               {team ? team.name : product.name}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              Home 2026 · Nike · PIX {formatBRL(pixCents)}
+              {kitFromSlug(product.slug) === "away" ? "Away" : "Home"} 2026 ·
+              Nike
             </p>
           </div>
-          <div className="flex shrink-0 items-baseline gap-1.5 text-right">
-            {hasDiscount && (
-              <span className="text-[11px] text-muted-foreground line-through">
-                {formatBRL(product.compareAtCents!)}
-              </span>
-            )}
+          <div className="flex items-baseline gap-1.5 sm:shrink-0 sm:text-right">
             <span className="text-sm font-semibold tabular-nums">
               {formatBRL(product.priceCents)}
+            </span>
+            <span className="text-[10px] font-medium text-turf">
+              · {formatBRL(pixCents)} PIX
             </span>
           </div>
         </div>
