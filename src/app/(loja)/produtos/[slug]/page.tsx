@@ -16,15 +16,20 @@ import { WishlistButton } from "@/components/loja/WishlistButton";
 import { ColorSwatches } from "@/components/loja/ColorSwatches";
 import { ShareButtons } from "@/components/loja/ShareButtons";
 import { FitCalculator } from "@/components/loja/FitCalculator";
-import { TrustChips } from "@/components/loja/TrustChips";
 import { ScrollProgress } from "@/components/loja/ScrollProgress";
 import { TrackRecentlyViewed } from "@/components/loja/TrackRecentlyViewed";
 import { RecentlyViewed } from "@/components/loja/RecentlyViewed";
 import { StockProgress } from "@/components/loja/StockProgress";
 import { NotifyMe } from "@/components/loja/NotifyMe";
 import { PdpUrgency } from "@/components/loja/PdpUrgency";
+import { splitImages } from "@/lib/images";
 import { getProductBySlug, getPublishedProducts } from "@/lib/catalog";
-import { teamBySlug } from "@/lib/teams";
+import {
+  teamBySlug,
+  homeSlug as teamHomeSlug,
+  awaySlug as teamAwaySlug,
+  kitFromSlug,
+} from "@/lib/teams";
 import { PIX_DISCOUNT_PCT, SITE_URL } from "@/lib/brand";
 import { formatBRL } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -57,10 +62,33 @@ export default async function ProductPage(
   const isSoldOut = totalStock === 0;
 
   const team = teamBySlug(product.slug);
-  const categoryLabel = team ? team.name : product.category;
+  const currentKit = kitFromSlug(product.slug);
+  const kitLabel =
+    currentKit === "away" ? "Away 2026" : currentKit === "home" ? "Home 2026" : "Edição 2026";
 
   const allProducts = await getPublishedProducts();
   const cross = allProducts.filter((p) => p.id !== product.id);
+
+  // Build the kit switcher options from actual sibling products in the catalog.
+  const kitOptions = (() => {
+    if (!team) return [];
+    const homeP = allProducts.find((p) => p.slug === teamHomeSlug(team));
+    const awayP = allProducts.find((p) => p.slug === teamAwaySlug(team));
+    const build = (p: typeof product | undefined, kind: "home" | "away") => {
+      if (!p) return null;
+      const { product: packs } = splitImages(p.images);
+      return {
+        slug: p.slug,
+        kind,
+        label: kind === "home" ? "Home" : "Away",
+        thumbUrl: packs[0] ?? p.images[0] ?? "",
+        current: p.slug === product.slug,
+      };
+    };
+    return [build(homeP, "home"), build(awayP, "away")].filter(
+      (x): x is NonNullable<typeof x> => x !== null && !!x.thumbUrl,
+    );
+  })();
 
   const productLd = {
     "@context": "https://schema.org",
@@ -146,37 +174,29 @@ export default async function ProductPage(
           <div className="lg:col-span-2">
             <div className="lg:sticky lg:top-24 space-y-7">
               <header className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   {team && (
-                    <span
-                      aria-hidden
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card/60 px-2.5 py-1 text-xs"
-                    >
-                      <span className="text-base">{team.flag}</span>
-                      {team.confederation}
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card/60 px-2.5 py-1 text-xs">
+                      <span aria-hidden className="text-base">
+                        {team.flag}
+                      </span>
+                      {team.shortName} · {team.confederation}
                     </span>
                   )}
-                  <span className="inline-flex rounded-full border border-turf/40 bg-turf/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-turf">
-                    Oficial Nike
-                  </span>
-                  <div className="ml-auto">
-                    <WishlistButton
-                      productId={product.id}
-                      productName={product.name}
-                    />
-                  </div>
+                  <WishlistButton
+                    productId={product.id}
+                    productName={product.name}
+                  />
                 </div>
 
-                <SocialProof />
-
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  {categoryLabel}
-                </p>
-                <h1 className="font-display text-4xl font-semibold leading-[1.02] tracking-tight md:text-5xl">
-                  {product.name}
-                </h1>
-
-                <TrustChips />
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-turf">
+                    {kitLabel} · Oficial Nike
+                  </p>
+                  <h1 className="mt-2 font-display text-4xl font-semibold leading-[1.02] tracking-tight md:text-5xl">
+                    {product.name}
+                  </h1>
+                </div>
 
                 <div className="flex items-baseline gap-3">
                   <span className="font-display text-3xl font-semibold tabular-nums">
@@ -204,11 +224,8 @@ export default async function ProductPage(
                 {product.description}
               </p>
 
-              {team && (
-                <ColorSwatches
-                  primaryColor={team.primaryColor}
-                  teamCode={team.code}
-                />
+              {team && kitOptions.length >= 2 && (
+                <ColorSwatches options={kitOptions} teamCode={team.code} />
               )}
 
               <StockProgress variants={product.variants} />
@@ -232,7 +249,10 @@ export default async function ProductPage(
                 )}
               </div>
 
-              <DeliveryEstimate />
+              <div className="space-y-3">
+                <DeliveryEstimate />
+                <SocialProof />
+              </div>
 
               <ul className="grid grid-cols-2 gap-3 pt-2">
                 <Feature icon={Truck} label="Despacho em 24h úteis" />

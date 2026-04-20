@@ -1,93 +1,94 @@
-"use client";
-
-import { Lock } from "lucide-react";
-import { toast } from "sonner";
+import Image from "next/image";
+import Link from "next/link";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Swatch = {
-  id: string;
+type KitOption = {
+  slug: string;
+  kind: "home" | "away";
   label: string;
-  color: string;
-  available: boolean;
-  dropAt?: string;
+  /** Thumbnail URL of the kit's packshot. */
+  thumbUrl: string;
+  /** Whether this is the product currently being viewed. */
+  current: boolean;
 };
 
+/**
+ * Kit switcher — replaces the old fake "Away / Third coming soon" teaser
+ * with real links to the sibling kit (home ↔ away) when it exists.
+ *
+ * Renders nothing when the team only has a single kit listed.
+ */
 export function ColorSwatches({
-  primaryColor,
+  options,
   teamCode,
 }: {
-  primaryColor: string;
+  options: KitOption[];
   teamCode: string;
 }) {
-  const swatches: Swatch[] = [
-    { id: "home", label: "Home", color: primaryColor, available: true },
-    {
-      id: "away",
-      label: "Away",
-      color: "oklch(0.2 0.01 240)",
-      available: false,
-      dropAt: "Maio de 2026",
-    },
-    {
-      id: "third",
-      label: "Third",
-      color: "oklch(0.75 0.18 80)",
-      available: false,
-      dropAt: "Junho de 2026",
-    },
-  ];
-
-  function handleLockedClick(s: Swatch) {
-    toast(`${s.label} · ${teamCode}`, {
-      description: `Drop previsto: ${s.dropAt}. Pra avisar, entre na newsletter.`,
-      duration: 3500,
-    });
-  }
+  if (options.length < 2) return null;
 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium">
-          Colorway{" "}
+          Versão{" "}
           <span className="text-muted-foreground font-normal">· {teamCode}</span>
         </p>
-        <p className="text-xs text-muted-foreground">Home · ativo</p>
+        <p className="text-xs text-muted-foreground">
+          {options.find((o) => o.current)?.kind === "home"
+            ? "Home · visualizando"
+            : "Away · visualizando"}
+        </p>
       </div>
 
       <div className="flex items-center gap-3">
-        {swatches.map((s) => (
-          <div key={s.id} className="group relative">
-            <button
-              type="button"
-              onClick={() => !s.available && handleLockedClick(s)}
-              aria-label={`${s.label} ${s.available ? "(disponível)" : `(drop ${s.dropAt})`}`}
+        {options.map((o) => {
+          const content = (
+            <div
               className={cn(
-                "relative flex size-14 items-center justify-center rounded-xl border-2 transition",
-                s.available
-                  ? "border-turf shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--turf)] cursor-default"
-                  : "border-border/60 opacity-60 hover:opacity-90 cursor-pointer",
-              )}
-              style={{ backgroundColor: s.color }}
-            >
-              {!s.available && (
-                <Lock className="size-4 text-white/80 drop-shadow" />
-              )}
-            </button>
-            <span
-              className={cn(
-                "mt-1.5 block text-center text-[10px] font-medium uppercase tracking-wider",
-                s.available ? "text-foreground" : "text-muted-foreground",
+                "relative size-16 overflow-hidden rounded-xl border-2 transition",
+                o.current
+                  ? "border-turf shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--turf)]"
+                  : "border-border/60 hover:border-foreground/80",
               )}
             >
-              {s.label}
-            </span>
-            {!s.available && s.dropAt && (
-              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-6 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border/80 bg-card px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground md:group-hover:block">
-                Drop {s.dropAt}
+              <Image
+                src={o.thumbUrl}
+                alt={`${o.label} ${teamCode}`}
+                fill
+                sizes="64px"
+                className="object-cover"
+              />
+              {o.current && (
+                <span className="absolute inset-0 flex items-center justify-center bg-turf/25 backdrop-blur-[1px]">
+                  <Check className="size-5 text-white drop-shadow" />
+                </span>
+              )}
+            </div>
+          );
+          return (
+            <div key={o.slug} className="flex flex-col items-center gap-1.5">
+              {o.current ? (
+                <span aria-current="page" className="cursor-default">
+                  {content}
+                </span>
+              ) : (
+                <Link href={`/produtos/${o.slug}`} aria-label={`Ver ${o.label}`}>
+                  {content}
+                </Link>
+              )}
+              <span
+                className={cn(
+                  "text-[10px] font-medium uppercase tracking-wider",
+                  o.current ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {o.label}
               </span>
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
