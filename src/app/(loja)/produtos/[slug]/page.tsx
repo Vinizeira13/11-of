@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Flame, Zap, Truck, RefreshCw, ShieldCheck } from "lucide-react";
+import { ChevronRight, Zap, Truck, RefreshCw, ShieldCheck } from "lucide-react";
 import { AddToCartButton } from "@/components/loja/AddToCartButton";
 import { DeliveryEstimate } from "@/components/loja/DeliveryEstimate";
 import { ProductGallerySplit } from "@/components/loja/ProductGallerySplit";
@@ -20,6 +20,9 @@ import { ReviewsBadge } from "@/components/loja/ReviewsBadge";
 import { ScrollProgress } from "@/components/loja/ScrollProgress";
 import { TrackRecentlyViewed } from "@/components/loja/TrackRecentlyViewed";
 import { RecentlyViewed } from "@/components/loja/RecentlyViewed";
+import { StockProgress } from "@/components/loja/StockProgress";
+import { NotifyMe } from "@/components/loja/NotifyMe";
+import { PdpUrgency } from "@/components/loja/PdpUrgency";
 import { getProductBySlug, getPublishedProducts } from "@/lib/catalog";
 import { teamBySlug } from "@/lib/teams";
 import { PIX_DISCOUNT_PCT, SITE_URL } from "@/lib/brand";
@@ -52,7 +55,6 @@ export default async function ProductPage(
 
   const totalStock = product.variants.reduce((s, v) => s + v.stockQty, 0);
   const isSoldOut = totalStock === 0;
-  const isLowStock = !isSoldOut && totalStock <= 10;
   const hasDiscount =
     product.compareAtCents !== null &&
     product.compareAtCents > product.priceCents;
@@ -216,12 +218,7 @@ export default async function ProductPage(
                   </p>
                 </div>
 
-                {isLowStock && (
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-orange-400">
-                    <Flame className="h-3.5 w-3.5" aria-hidden />
-                    Últimas {totalStock} unidades no estoque · sem reposição
-                  </p>
-                )}
+                <PdpUrgency />
               </header>
 
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -235,16 +232,25 @@ export default async function ProductPage(
                 />
               )}
 
+              <StockProgress variants={product.variants} />
+
               <div id="pdp-cta" className={cn(isSoldOut && "opacity-60")}>
-                <AddToCartButton
-                  product={product}
-                  sizeHeaderExtra={
-                    <div className="flex items-center gap-3">
-                      <FitCalculator />
-                      <SizeGuide />
-                    </div>
-                  }
-                />
+                {isSoldOut ? (
+                  <NotifyMe
+                    productName={product.name}
+                    productSlug={product.slug}
+                  />
+                ) : (
+                  <AddToCartButton
+                    product={product}
+                    sizeHeaderExtra={
+                      <div className="flex items-center gap-3">
+                        <FitCalculator />
+                        <SizeGuide />
+                      </div>
+                    }
+                  />
+                )}
               </div>
 
               <DeliveryEstimate />

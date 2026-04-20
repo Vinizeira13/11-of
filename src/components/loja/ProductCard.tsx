@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Truck } from "lucide-react";
 import type { Product } from "@/lib/catalog";
 import { splitImages, pickBackImage } from "@/lib/images";
 import { teamBySlug } from "@/lib/teams";
 import { formatBRL } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { FREE_SHIPPING_THRESHOLD_CENTS, PIX_DISCOUNT_PCT } from "@/lib/brand";
 import { WishlistButton } from "./WishlistButton";
 
 export function ProductCard({
@@ -31,12 +32,15 @@ export function ProductCard({
   const discountPct = hasDiscount
     ? Math.round((1 - product.priceCents / product.compareAtCents!) * 100)
     : 0;
+  const hasFreeShipping = product.priceCents >= FREE_SHIPPING_THRESHOLD_CENTS;
+  const pixCents = Math.round(
+    product.priceCents * (1 - PIX_DISCOUNT_PCT / 100),
+  );
 
   const team = teamBySlug(product.slug);
 
   return (
     <div className="group relative">
-      {/* Wishlist floats above the Link so its click isn't captured */}
       <div className="absolute right-3 top-3 z-10">
         <WishlistButton
           productId={product.id}
@@ -74,7 +78,6 @@ export function ProductCard({
             )}
           />
 
-          {/* Top-left: flag + team code */}
           {team && (
             <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
               <span aria-hidden>{team.flag}</span>
@@ -82,7 +85,6 @@ export function ProductCard({
             </div>
           )}
 
-          {/* Bottom-left: discount/stock/bestseller */}
           <div className="absolute bottom-14 left-3 flex flex-wrap gap-1.5">
             {showBestseller && !isSoldOut && (
               <span className="rounded-full bg-turf px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-turf-foreground">
@@ -99,6 +101,11 @@ export function ProductCard({
                 últimas {totalStock}
               </span>
             )}
+            {hasFreeShipping && !isSoldOut && !isLowStock && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
+                <Truck className="size-2.5" /> frete grátis
+              </span>
+            )}
             {isSoldOut && (
               <span className="rounded-full bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground backdrop-blur">
                 esgotado
@@ -106,7 +113,6 @@ export function ProductCard({
             )}
           </div>
 
-          {/* Hover CTA */}
           <div className="pointer-events-none absolute inset-x-3 bottom-3 flex translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
             <div className="inline-flex flex-1 items-center justify-between gap-2 rounded-full bg-turf px-4 py-2.5 text-xs font-semibold text-turf-foreground">
               Ver detalhes
@@ -121,7 +127,7 @@ export function ProductCard({
               {team ? team.name : product.name}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              Home 2026 · Nike
+              Home 2026 · Nike · PIX {formatBRL(pixCents)}
             </p>
           </div>
           <div className="flex shrink-0 items-baseline gap-1.5 text-right">

@@ -19,3 +19,4 @@ export const WORLD_CUP_OPENING = new Date("2026-06-11T16:00:00-05:00");
 
 export const INSTAGRAM_URL = "https://instagram.com/11of";
 export const TIKTOK_URL = "https://tiktok.com/@11of";
+export const WHATSAPP_DISPLAY = "(11) 99999-9999";

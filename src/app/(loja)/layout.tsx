@@ -4,8 +4,11 @@ import { Footer } from "@/components/loja/Footer";
 import { CartProvider } from "@/components/loja/cart/CartContext";
 import { CartDrawer } from "@/components/loja/cart/CartDrawer";
 import { TeamPicker } from "@/components/loja/TeamPicker";
+import { WhatsAppFloat } from "@/components/loja/WhatsAppFloat";
+import { RecentPurchaseToast } from "@/components/loja/RecentPurchaseToast";
 import { readCart } from "@/lib/cart";
 import { getPublishedProducts } from "@/lib/catalog";
+import { WHATSAPP } from "@/lib/brand";
 
 export default async function StorefrontLayout({
   children,
@@ -25,6 +28,8 @@ export default async function StorefrontLayout({
       <Footer />
       <CartDrawer />
       <TeamPicker />
+      <WhatsAppFloat phone={WHATSAPP} />
+      <RecentPurchaseToast />
     </CartProvider>
   );
 }
