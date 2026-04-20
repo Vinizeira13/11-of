@@ -6,6 +6,7 @@ import { ChevronDown, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { FreeShippingBar } from "./FreeShippingBar";
 import { formatBRL } from "@/lib/money";
 import { PIX_DISCOUNT_PCT } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,10 @@ export function CheckoutSummary({
             <Badge variant="secondary" className="rounded-full bg-turf/15 text-turf hover:bg-turf/15">
               PIX
             </Badge>
+          </div>
+
+          <div className="mt-4">
+            <FreeShippingBar subtotalCents={subtotalCents} />
           </div>
 
           <ul className="mt-5 flex flex-col gap-4">

@@ -5,11 +5,26 @@ import { RefreshCw, Truck, Zap, ShieldCheck } from "lucide-react";
 import { CheckoutForm } from "@/components/loja/CheckoutForm";
 import { CheckoutSteps } from "@/components/loja/CheckoutSteps";
 import { CheckoutSummary } from "@/components/loja/CheckoutSummary";
+import {
+  CheckoutOrderBump,
+  type BumpItem,
+} from "@/components/loja/CheckoutOrderBump";
+import { CheckoutStickyMobile } from "@/components/loja/CheckoutStickyMobile";
 import { BrandMark } from "@/components/loja/BrandMark";
+import { splitImages } from "@/lib/images";
 import { readCart } from "@/lib/cart";
-import { resolveCartLines } from "@/lib/catalog";
+import { getPublishedProducts, resolveCartLines } from "@/lib/catalog";
 import { pixDiscountCents } from "@/lib/pricing";
-import { shippingFor } from "@/lib/shipping";
+import {
+  shippingFor,
+  FREE_SHIPPING_THRESHOLD_CENTS,
+} from "@/lib/shipping";
+import {
+  teamBySlug,
+  homeSlug as teamHomeSlug,
+  awaySlug as teamAwaySlug,
+  kitFromSlug,
+} from "@/lib/teams";
 import { PIX_DISCOUNT_PCT } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -28,6 +43,7 @@ export default async function CheckoutPage() {
   const shippingCents = shippingFor(subtotalCents);
   const discountCents = pixDiscountCents(subtotalCents);
   const totalCents = subtotalCents + shippingCents - discountCents;
+  const totalItems = resolved.reduce((s, l) => s + l.qty, 0);
 
   const summaryLines = resolved.map((l) => ({
     variantId: l.variantId,
@@ -37,6 +53,94 @@ export default async function CheckoutPage() {
     image: l.product.images[0] ?? null,
     lineTotalCents: l.lineTotalCents,
   }));
+
+  // -----------------------------------------------------------------
+  // Order bump: suggest sibling kits (Home ↔ Away) and, if below the
+  // free-shipping gate, push 1-2 options that would unlock it.
+  // -----------------------------------------------------------------
+  const allProducts = await getPublishedProducts();
+  const cartSlugs = new Set(resolved.map((l) => l.product.slug));
+
+  function pickDefaultVariant(product: (typeof allProducts)[number]) {
+    return (
+      product.variants.find((v) => v.size === "M" && v.stockQty > 0) ??
+      product.variants.find((v) => v.stockQty > 0) ??
+      null
+    );
+  }
+
+  function buildBump(
+    product: (typeof allProducts)[number],
+    reason: "sibling" | "free-shipping",
+    reasonLabel: string,
+  ): BumpItem | null {
+    const variant = pickDefaultVariant(product);
+    if (!variant) return null;
+    const { product: packs } = splitImages(product.images);
+    const team = teamBySlug(product.slug);
+    return {
+      productId: product.id,
+      variantId: variant.id,
+      slug: product.slug,
+      name: product.name,
+      imageUrl: packs[0] ?? product.images[0] ?? "",
+      priceCents: product.priceCents,
+      size: variant.size,
+      reason,
+      reasonLabel,
+      flag: team?.flag,
+    };
+  }
+
+  const bumpItems: BumpItem[] = [];
+  const seenProductIds = new Set<string>();
+
+  // (A) Sibling kits: Home↔Away of the same team
+  for (const line of resolved) {
+    const team = teamBySlug(line.product.slug);
+    if (!team) continue;
+    const currentKit = kitFromSlug(line.product.slug);
+    const siblingSlug =
+      currentKit === "home"
+        ? teamAwaySlug(team)
+        : currentKit === "away"
+          ? teamHomeSlug(team)
+          : null;
+    if (!siblingSlug || cartSlugs.has(siblingSlug)) continue;
+    const sibling = allProducts.find((p) => p.slug === siblingSlug);
+    if (!sibling || seenProductIds.has(sibling.id)) continue;
+    const bump = buildBump(
+      sibling,
+      "sibling",
+      currentKit === "home" ? "Leva o away junto" : "Leva o home junto",
+    );
+    if (bump) {
+      bumpItems.push(bump);
+      seenProductIds.add(sibling.id);
+    }
+    if (bumpItems.length >= 2) break;
+  }
+
+  // (B) Free-shipping unlock: only if still below the gate and there's room
+  if (subtotalCents < FREE_SHIPPING_THRESHOLD_CENTS && bumpItems.length < 2) {
+    const gap = FREE_SHIPPING_THRESHOLD_CENTS - subtotalCents;
+    const candidates = allProducts
+      .filter(
+        (p) =>
+          !cartSlugs.has(p.slug) &&
+          !seenProductIds.has(p.id) &&
+          p.priceCents >= gap,
+      )
+      .sort((a, b) => a.priceCents - b.priceCents); // cheapest first = min add spend
+    for (const c of candidates) {
+      if (bumpItems.length >= 2) break;
+      const bump = buildBump(c, "free-shipping", "Adiciona e frete fica grátis");
+      if (bump) {
+        bumpItems.push(bump);
+        seenProductIds.add(c.id);
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,8 +181,10 @@ export default async function CheckoutPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_400px] lg:gap-14">
-          <section>
-            <div className="mb-8">
+          <section className="flex flex-col gap-8">
+            {bumpItems.length > 0 && <CheckoutOrderBump items={bumpItems} />}
+
+            <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-turf">
                 Passo 2 de 3
               </p>
@@ -102,6 +208,12 @@ export default async function CheckoutPage() {
           />
         </div>
       </div>
+
+      <CheckoutStickyMobile
+        totalCents={totalCents}
+        pixSavingsCents={discountCents}
+        itemsCount={totalItems}
+      />
     </div>
   );
 }
