@@ -5,9 +5,21 @@ import { CheckCircle2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { PixDisplay } from "@/components/loja/PixDisplay";
+import {
+  PostPurchaseUpsell,
+  type UpsellProduct,
+} from "@/components/loja/PostPurchaseUpsell";
+import { getPublishedProducts } from "@/lib/catalog";
+import { splitImages } from "@/lib/images";
 import { createServiceClient } from "@/lib/supabase/service";
 import { formatBRL } from "@/lib/money";
 import { SUPPORT_EMAIL } from "@/lib/brand";
+import {
+  teamBySlug,
+  homeSlug as teamHomeSlug,
+  awaySlug as teamAwaySlug,
+  kitFromSlug,
+} from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +38,17 @@ type OrderAddress = {
   uf: string;
 };
 
+type OrderItemRow = {
+  variant_id: string;
+  qty: number;
+  unit_price_cents: number;
+  product_name_snapshot: string;
+  variant_size_snapshot: string;
+  image_snapshot: string | null;
+  product_id?: string;
+  product?: { slug: string } | null;
+};
+
 type OrderRow = {
   id: string;
   short_code: string;
@@ -37,15 +60,10 @@ type OrderRow = {
   pix_copy_paste: string | null;
   pix_expires_at: string | null;
   shipping_address: OrderAddress;
-  order_items: {
-    variant_id: string;
-    qty: number;
-    unit_price_cents: number;
-    product_name_snapshot: string;
-    variant_size_snapshot: string;
-    image_snapshot: string | null;
-  }[];
+  order_items: OrderItemRow[];
 };
+
+type UpsellCoupon = { code: string; discount_pct: number; expires_at: string };
 
 async function loadOrder(id: string): Promise<OrderRow | null> {
   const supabase = createServiceClient();
@@ -54,11 +72,21 @@ async function loadOrder(id: string): Promise<OrderRow | null> {
     .select(
       `id, short_code, customer_email, subtotal_cents, shipping_cents, total_cents,
        payment_status, pix_copy_paste, pix_expires_at, shipping_address,
-       order_items(variant_id, qty, unit_price_cents, product_name_snapshot, variant_size_snapshot, image_snapshot)`,
+       order_items(variant_id, qty, unit_price_cents, product_name_snapshot, variant_size_snapshot, image_snapshot, product_id, product:product_id(slug))`,
     )
     .eq("id", id)
     .maybeSingle();
   return (data as OrderRow | null) ?? null;
+}
+
+async function loadUpsellCoupon(): Promise<UpsellCoupon | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("coupons")
+    .select("code, discount_pct, expires_at")
+    .eq("code", "PROXIMA10")
+    .maybeSingle();
+  return (data as UpsellCoupon | null) ?? null;
 }
 
 export default async function OrderPage(props: PageProps<"/pedido/[id]">) {
@@ -70,6 +98,59 @@ export default async function OrderPage(props: PageProps<"/pedido/[id]">) {
   const pixExpiresAtMs = order.pix_expires_at
     ? new Date(order.pix_expires_at).getTime()
     : 0;
+
+  // -------- Post-purchase upsell: siblings of ordered items, then fillers --------
+  const [coupon, allProducts] = await Promise.all([
+    loadUpsellCoupon(),
+    getPublishedProducts(),
+  ]);
+
+  const orderedSlugs = new Set(
+    order.order_items.map((i) => i.product?.slug).filter(Boolean) as string[],
+  );
+  const orderedProductIds = new Set(
+    order.order_items.map((i) => i.product_id).filter(Boolean) as string[],
+  );
+
+  const upsellPicks: (typeof allProducts)[number][] = [];
+  const seen = new Set<string>();
+
+  // Pass 1: sibling kits (Home ↔ Away) of purchased teams
+  for (const item of order.order_items) {
+    const slug = item.product?.slug;
+    if (!slug) continue;
+    const team = teamBySlug(slug);
+    if (!team) continue;
+    const siblingSlug =
+      kitFromSlug(slug) === "home" ? teamAwaySlug(team) : teamHomeSlug(team);
+    if (orderedSlugs.has(siblingSlug)) continue;
+    const p = allProducts.find((x) => x.slug === siblingSlug);
+    if (p && !seen.has(p.id)) {
+      upsellPicks.push(p);
+      seen.add(p.id);
+    }
+  }
+
+  // Pass 2: top-sorted fillers (by sort_order, implicit via catalog query order)
+  for (const p of allProducts) {
+    if (upsellPicks.length >= 4) break;
+    if (orderedProductIds.has(p.id) || seen.has(p.id)) continue;
+    upsellPicks.push(p);
+    seen.add(p.id);
+  }
+
+  const upsellProducts: UpsellProduct[] = upsellPicks.slice(0, 4).map((p) => {
+    const { product: packs } = splitImages(p.images);
+    const team = teamBySlug(p.slug);
+    return {
+      slug: p.slug,
+      name: p.name,
+      shortName: team?.shortName,
+      flag: team?.flag,
+      priceCents: p.priceCents,
+      imageUrl: packs[0] ?? p.images[0] ?? "",
+    };
+  });
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-8 md:pt-12">
@@ -239,6 +320,15 @@ export default async function OrderPage(props: PageProps<"/pedido/[id]">) {
           </p>
         </aside>
       </div>
+
+      {coupon && upsellProducts.length > 0 && (
+        <PostPurchaseUpsell
+          products={upsellProducts}
+          couponCode={coupon.code}
+          couponPct={coupon.discount_pct}
+          couponExpiresAt={coupon.expires_at}
+        />
+      )}
     </div>
   );
 }

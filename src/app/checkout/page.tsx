@@ -10,6 +10,7 @@ import {
   type BumpItem,
 } from "@/components/loja/CheckoutOrderBump";
 import { CheckoutStickyMobile } from "@/components/loja/CheckoutStickyMobile";
+import { CheckoutExitIntent } from "@/components/loja/CheckoutExitIntent";
 import { BrandMark } from "@/components/loja/BrandMark";
 import { splitImages } from "@/lib/images";
 import { readCart } from "@/lib/cart";
@@ -213,6 +214,12 @@ export default async function CheckoutPage() {
         totalCents={totalCents}
         pixSavingsCents={discountCents}
         itemsCount={totalItems}
+      />
+
+      <CheckoutExitIntent
+        totalCents={totalCents}
+        itemsCount={totalItems}
+        pixSavingsCents={discountCents}
       />
     </div>
   );
