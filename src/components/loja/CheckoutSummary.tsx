@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ChevronDown, Tag } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, Minus, Plus, Tag, X } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { FreeShippingBar } from "./FreeShippingBar";
+import {
+  removeFromCartAction,
+  updateCartQtyAction,
+} from "@/app/_actions/cart";
 import { formatBRL } from "@/lib/money";
 import { PIX_DISCOUNT_PCT } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -34,7 +40,34 @@ export function CheckoutSummary({
   totalCents: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const router = useRouter();
   const itemsCount = lines.reduce((s, l) => s + l.qty, 0);
+
+  function changeQty(variantId: string, nextQty: number) {
+    setPendingId(variantId);
+    startTransition(async () => {
+      const res = await updateCartQtyAction(variantId, nextQty);
+      setPendingId(null);
+      if (res.ok) router.refresh();
+      else toast.error(res.error ?? "Não foi possível atualizar.");
+    });
+  }
+
+  function removeLine(variantId: string) {
+    setPendingId(variantId);
+    startTransition(async () => {
+      const res = await removeFromCartAction(variantId);
+      setPendingId(null);
+      if (res.ok) {
+        toast.success("Item removido");
+        router.refresh();
+      } else {
+        toast.error(res.error ?? "Não foi possível remover.");
+      }
+    });
+  }
 
   return (
     <aside className="lg:order-last">
@@ -81,34 +114,78 @@ export function CheckoutSummary({
           </div>
 
           <ul className="mt-5 flex flex-col gap-4">
-            {lines.map((line) => (
-              <li key={line.variantId} className="flex gap-3">
-                <div className="relative size-16 flex-none overflow-hidden rounded-md bg-muted">
-                  {line.image && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={line.image}
-                      alt={line.productName}
-                      className="size-full object-cover"
-                    />
+            {lines.map((line) => {
+              const isPending = pendingId === line.variantId;
+              return (
+                <li
+                  key={line.variantId}
+                  className={cn(
+                    "flex gap-3 transition-opacity",
+                    isPending && "opacity-60",
                   )}
-                  <span className="absolute -right-1 -top-1 inline-flex size-5 items-center justify-center rounded-full bg-turf text-[10px] font-semibold text-turf-foreground">
-                    {line.qty}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col justify-between">
-                  <p className="text-sm font-medium leading-tight">
-                    {line.productName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Tamanho {line.variantSize}
-                  </p>
-                </div>
-                <p className="text-sm font-medium tabular-nums">
-                  {formatBRL(line.lineTotalCents)}
-                </p>
-              </li>
-            ))}
+                >
+                  <div className="relative size-16 flex-none overflow-hidden rounded-md bg-muted">
+                    {line.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={line.image}
+                        alt={line.productName}
+                        className="size-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col justify-between gap-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium leading-tight">
+                        {line.productName}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => removeLine(line.variantId)}
+                        disabled={isPending}
+                        aria-label={`Remover ${line.productName}`}
+                        className="-mr-1 shrink-0 rounded-full p-1 text-muted-foreground transition hover:bg-card hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Tamanho {line.variantSize}
+                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center rounded-full border border-border/70 bg-card/60">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            changeQty(line.variantId, Math.max(0, line.qty - 1))
+                          }
+                          disabled={isPending}
+                          aria-label="Reduzir quantidade"
+                          className="inline-flex size-7 items-center justify-center rounded-full transition hover:bg-foreground/10 disabled:opacity-50"
+                        >
+                          <Minus className="size-3" />
+                        </button>
+                        <span className="min-w-6 text-center text-xs font-semibold tabular-nums">
+                          {line.qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => changeQty(line.variantId, line.qty + 1)}
+                          disabled={isPending}
+                          aria-label="Aumentar quantidade"
+                          className="inline-flex size-7 items-center justify-center rounded-full transition hover:bg-foreground/10 disabled:opacity-50"
+                        >
+                          <Plus className="size-3" />
+                        </button>
+                      </div>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {formatBRL(line.lineTotalCents)}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
 
           <Separator className="my-5" />
