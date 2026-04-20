@@ -1,6 +1,7 @@
 "use client";
 
 import { Lock } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 type Swatch = {
@@ -19,27 +20,29 @@ export function ColorSwatches({
   teamCode: string;
 }) {
   const swatches: Swatch[] = [
-    {
-      id: "home",
-      label: "Home",
-      color: primaryColor,
-      available: true,
-    },
+    { id: "home", label: "Home", color: primaryColor, available: true },
     {
       id: "away",
       label: "Away",
       color: "oklch(0.2 0.01 240)",
       available: false,
-      dropAt: "Mai/2026",
+      dropAt: "Maio de 2026",
     },
     {
       id: "third",
       label: "Third",
       color: "oklch(0.75 0.18 80)",
       available: false,
-      dropAt: "Jun/2026",
+      dropAt: "Junho de 2026",
     },
   ];
+
+  function handleLockedClick(s: Swatch) {
+    toast(`${s.label} · ${teamCode}`, {
+      description: `Drop previsto: ${s.dropAt}. Pra avisar, entre na newsletter.`,
+      duration: 3500,
+    });
+  }
 
   return (
     <div className="space-y-3">
@@ -56,17 +59,15 @@ export function ColorSwatches({
           <div key={s.id} className="group relative">
             <button
               type="button"
-              disabled={!s.available}
-              aria-label={`${s.label} ${s.available ? "(disponível)" : "(em breve)"}`}
+              onClick={() => !s.available && handleLockedClick(s)}
+              aria-label={`${s.label} ${s.available ? "(disponível)" : `(drop ${s.dropAt})`}`}
               className={cn(
                 "relative flex size-14 items-center justify-center rounded-xl border-2 transition",
                 s.available
-                  ? "border-turf shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--turf)]"
-                  : "border-border/60 opacity-60 hover:opacity-80",
+                  ? "border-turf shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--turf)] cursor-default"
+                  : "border-border/60 opacity-60 hover:opacity-90 cursor-pointer",
               )}
-              style={{
-                backgroundColor: s.color,
-              }}
+              style={{ backgroundColor: s.color }}
             >
               {!s.available && (
                 <Lock className="size-4 text-white/80 drop-shadow" />
@@ -81,7 +82,7 @@ export function ColorSwatches({
               {s.label}
             </span>
             {!s.available && s.dropAt && (
-              <span className="absolute left-1/2 top-full z-10 mt-6 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border/80 bg-card px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground group-hover:block">
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-6 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border/80 bg-card px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground md:group-hover:block">
                 Drop {s.dropAt}
               </span>
             )}

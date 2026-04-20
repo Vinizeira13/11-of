@@ -274,13 +274,22 @@ export function CartDrawer() {
                 {formatBRL(subtotalCents)}
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-turf/10 px-3 py-2 text-sm text-turf">
-              <span className="inline-flex items-center gap-1.5 font-semibold">
-                <Zap className="size-3.5" /> Com PIX ({PIX_DISCOUNT_PCT}% OFF)
-              </span>
-              <span className="font-semibold tabular-nums">
-                {formatBRL(pixTotalCents)}
-              </span>
+            <div className="rounded-lg bg-turf/10 px-3 py-2.5 text-sm text-turf">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 font-semibold">
+                  <Zap className="size-3.5" /> Com PIX ({PIX_DISCOUNT_PCT}% OFF)
+                </span>
+                <span className="font-semibold tabular-nums">
+                  {formatBRL(pixTotalCents)}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-turf/80">
+                Você economiza{" "}
+                <span className="font-semibold text-turf">
+                  {formatBRL(subtotalCents - pixTotalCents)}
+                </span>
+                {" "}pagando no PIX.
+              </p>
             </div>
             <p className="text-xs text-muted-foreground">
               Frete calculado no checkout · desconto aplicado automático

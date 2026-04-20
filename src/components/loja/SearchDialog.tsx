@@ -175,25 +175,35 @@ export function SearchDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-muted/20 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          <span>
-            <kbd className="rounded border border-border/70 bg-background/80 px-1.5 py-0.5 font-mono text-[10px]">
-              ↑↓
-            </kbd>{" "}
-            navegar
-          </span>
-          <span>
-            <kbd className="rounded border border-border/70 bg-background/80 px-1.5 py-0.5 font-mono text-[10px]">
-              ↵
-            </kbd>{" "}
-            abrir
-          </span>
-          <span>
-            <kbd className="rounded border border-border/70 bg-background/80 px-1.5 py-0.5 font-mono text-[10px]">
-              esc
-            </kbd>{" "}
-            fechar
-          </span>
+        <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-4 py-2.5 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="hidden items-center gap-3 sm:flex">
+            <span>
+              <kbd className="rounded border border-border/70 bg-background/80 px-1.5 py-0.5 font-mono text-[10px]">
+                ↑↓
+              </kbd>{" "}
+              navegar
+            </span>
+            <span>
+              <kbd className="rounded border border-border/70 bg-background/80 px-1.5 py-0.5 font-mono text-[10px]">
+                ↵
+              </kbd>{" "}
+              abrir
+            </span>
+            <span>
+              <kbd className="rounded border border-border/70 bg-background/80 px-1.5 py-0.5 font-mono text-[10px]">
+                esc
+              </kbd>{" "}
+              fechar
+            </span>
+          </div>
+          <Link
+            href="/produtos"
+            onClick={() => onOpenChange(false)}
+            className="ml-auto inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-3 py-1 normal-case tracking-normal text-foreground/80 hover:border-foreground hover:text-foreground transition"
+          >
+            Ver todas as {entries.length} camisas
+            <CornerDownLeft className="size-3" />
+          </Link>
         </div>
       </DialogContent>
     </Dialog>

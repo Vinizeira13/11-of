@@ -5,7 +5,7 @@ import { CartProvider } from "@/components/loja/cart/CartContext";
 import { CartDrawer } from "@/components/loja/cart/CartDrawer";
 import { TeamPicker } from "@/components/loja/TeamPicker";
 import { WhatsAppFloat } from "@/components/loja/WhatsAppFloat";
-import { RecentPurchaseToast } from "@/components/loja/RecentPurchaseToast";
+import { ScrollToTop } from "@/components/loja/ScrollToTop";
 import { readCart } from "@/lib/cart";
 import { getPublishedProducts } from "@/lib/catalog";
 import { WHATSAPP } from "@/lib/brand";
@@ -29,7 +29,7 @@ export default async function StorefrontLayout({
       <CartDrawer />
       <TeamPicker />
       <WhatsAppFloat phone={WHATSAPP} />
-      <RecentPurchaseToast />
+      <ScrollToTop />
     </CartProvider>
   );
 }

@@ -31,20 +31,42 @@ const SLUGS: Record<string, string> = {
 const teamImage = (code: string) =>
   `https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/${code.toLowerCase()}/002_nike-football-2026-federation-kits-${SLUGS[code] ?? code.toLowerCase()}-home-1.jpg`;
 
+const SCROLL_THRESHOLD = 900;
+const TIMEOUT_MS = 45_000;
+
 /**
- * First-visit team picker. Opens once unless user already picked a team or
- * dismissed the modal.
+ * First-visit team picker. Doesn't ambush the user — opens only when the
+ * visitor either scrolls past the Hero (~900px) OR dwells 45s on the site,
+ * never both. One-shot per browser (stored in localStorage).
  */
 export function TeamPicker() {
   const [open, setOpen] = useState(false);
   const { code, set } = useFavoriteTeam();
 
   useEffect(() => {
-    // Wait a beat so we don't disrupt the Hero reveal
-    const t = setTimeout(() => {
-      if (!hasSeenTeamPicker()) setOpen(true);
-    }, 2500);
-    return () => clearTimeout(t);
+    if (hasSeenTeamPicker()) return;
+
+    let fired = false;
+    const timeoutId = window.setTimeout(() => {
+      if (!fired) {
+        fired = true;
+        setOpen(true);
+      }
+    }, TIMEOUT_MS);
+
+    function onScroll() {
+      if (fired) return;
+      if (window.scrollY > SCROLL_THRESHOLD) {
+        fired = true;
+        window.clearTimeout(timeoutId);
+        setOpen(true);
+      }
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   function pick(teamCode: string) {
@@ -83,8 +105,8 @@ export function TeamPicker() {
             </h2>
           </DialogTitle>
           <DialogDescription className="mt-3 max-w-lg text-sm text-muted-foreground">
-            A gente personaliza a home com a tua camisa em destaque. Pode trocar
-            depois — toda a loja continua disponível.
+            A gente usa isso só pra deixar a home com a tua camisa em
+            destaque. Opcional — dá pra pular.
           </DialogDescription>
         </div>
 
@@ -129,7 +151,7 @@ export function TeamPicker() {
 
         <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-card/40 px-8 py-4">
           <p className="text-xs text-muted-foreground">
-            Podemos pular por agora.
+            Sem conta. Fica salvo no seu dispositivo.
           </p>
           <button
             type="button"

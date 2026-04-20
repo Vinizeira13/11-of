@@ -1,11 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ANNOUNCEMENTS } from "@/data/announcements";
 import { Marquee } from "./Marquee";
 
 const STORAGE_KEY = "11of:announcement:dismissed";
+
+// All announcement bar items link to the same catalog page with a helpful
+// anchor hint — every message is a hook pro catálogo.
+const LINK = "/produtos";
 
 export function AnnouncementBar() {
   const [dismissed, setDismissed] = useState<boolean | null>(null);
@@ -36,10 +41,13 @@ export function AnnouncementBar() {
         <Marquee duration={45} className="flex-1 py-2.5">
           {items.map((a, i) => (
             <Fragment key={`${a.message}-${i}`}>
-              <span className="mx-6 inline-flex items-center gap-2 text-[11px] sm:text-xs font-medium uppercase tracking-[0.16em]">
+              <Link
+                href={LINK}
+                className="mx-6 inline-flex items-center gap-2 text-[11px] sm:text-xs font-medium uppercase tracking-[0.16em] hover:underline underline-offset-4"
+              >
                 <span aria-hidden>{a.emoji}</span>
                 {a.message}
-              </span>
+              </Link>
               <span aria-hidden className="text-turf-foreground/40">
                 ·
               </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { BellRing, Check } from "lucide-react";
 import {
   Dialog,
@@ -20,9 +20,22 @@ export function NotifyMe({
   productId: string;
   productName: string;
 }) {
+  const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Auto-dismiss success state 3s after confirmation so the user is
+  // gently returned to the PDP instead of sitting on a modal.
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => {
+      setOpen(false);
+      setDone(false);
+      setEmail("");
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [done]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +58,7 @@ export function NotifyMe({
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
           type="button"
@@ -63,8 +76,7 @@ export function NotifyMe({
           <DialogDescription>
             Deixe o e-mail e você é avisado assim que{" "}
             <span className="font-medium text-foreground">{productName}</span>{" "}
-            voltar pro estoque. A gente só manda esse aviso — sem newsletter
-            extra.
+            voltar pro estoque. Só esse aviso — sem newsletter extra.
           </DialogDescription>
         </DialogHeader>
 
@@ -77,7 +89,7 @@ export function NotifyMe({
               Inscrito com sucesso.
             </p>
             <p className="text-sm text-muted-foreground">
-              Você recebe um email assim que a reposição chegar.
+              Fechando em instantes…
             </p>
           </div>
         ) : (
@@ -99,7 +111,7 @@ export function NotifyMe({
               {isPending ? "Entrando na lista…" : "Me avise"}
             </button>
             <p className="text-[11px] text-muted-foreground">
-              Usamos o email apenas pra esse aviso. Nada de spam.
+              Usamos o email apenas pra esse aviso.
             </p>
           </form>
         )}
