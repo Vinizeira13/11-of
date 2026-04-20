@@ -1,61 +1,61 @@
 import { Flame } from "lucide-react";
 import type { Variant } from "@/lib/catalog";
 
-const INITIAL_STOCK_PER_SIZE = 10; // baseline used to derive "% sold" visual
-
+/**
+ * Honest stock indicator. Shows ONLY real, verifiable signals derived from
+ * the actual `variants[i].stockQty` numbers. No invented capacity, no fake
+ * "X% sold" math — if stock is plentiful across the board, nothing renders.
+ *
+ * Triggers:
+ *   - any variant at 0 in a set of 4 → "Esgotado em <size>"
+ *   - any variant ≤ 3 → "Apenas X em <size>"
+ *   - total stock across sizes ≤ 8 → "Últimas 8 unidades no total"
+ */
 export function StockProgress({ variants }: { variants: Variant[] }) {
   if (variants.length === 0) return null;
   const total = variants.reduce((s, v) => s + v.stockQty, 0);
-  const capacity = variants.length * INITIAL_STOCK_PER_SIZE;
-  const sold = Math.max(0, capacity - total);
-  const soldPct = Math.min(100, Math.round((sold / capacity) * 100));
-  const remainingPct = 100 - soldPct;
+  const low = variants.filter((v) => v.stockQty > 0 && v.stockQty <= 3);
+  const gone = variants.filter((v) => v.stockQty === 0);
 
-  let intent: "hot" | "warm" | "cold" = "cold";
-  if (remainingPct <= 30) intent = "hot";
-  else if (remainingPct <= 55) intent = "warm";
+  const hasSignal = total === 0 || total <= 8 || low.length > 0 || gone.length > 0;
+  if (!hasSignal) return null;
 
-  const label =
-    total === 0
-      ? "Esgotado"
-      : total <= 5
-        ? `Apenas ${total} restantes da tiragem`
-        : total <= 15
-          ? `${total} unidades restantes · ${soldPct}% vendido`
-          : `${soldPct}% da tiragem já saiu`;
-
-  const color =
-    intent === "hot"
-      ? "bg-orange-400"
-      : intent === "warm"
-        ? "bg-gold"
-        : "bg-turf";
+  if (total === 0) {
+    return (
+      <p className="flex items-center gap-2 rounded-xl border border-orange-400/30 bg-orange-400/10 px-3 py-2 text-xs font-medium text-orange-300">
+        <Flame className="size-3.5" aria-hidden />
+        Esgotado em todos os tamanhos — entre pra lista de espera.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs">
-        <span className="inline-flex items-center gap-1.5 font-medium text-foreground/90">
-          {intent === "hot" && (
-            <Flame className="size-3.5 text-orange-400" aria-hidden />
-          )}
-          {label}
+    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+      {total <= 8 && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-orange-400/30 bg-orange-400/10 px-2.5 py-1 font-medium text-orange-300">
+          <Flame className="size-3" aria-hidden />
+          Últimas {total} unidades no total
         </span>
-        <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-          {sold}/{capacity}
+      )}
+      {low.map((v) => (
+        <span
+          key={v.id}
+          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/50 px-2.5 py-1 text-foreground/80"
+        >
+          <span className="font-medium text-foreground">Tam. {v.size}</span>
+          <span className="text-muted-foreground">
+            · apenas {v.stockQty}
+          </span>
         </span>
-      </div>
-      <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60"
-        role="progressbar"
-        aria-valuenow={soldPct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div
-          className={`h-full ${color} transition-all`}
-          style={{ width: `${soldPct}%` }}
-        />
-      </div>
+      ))}
+      {gone.map((v) => (
+        <span
+          key={v.id}
+          className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/40 px-2.5 py-1 text-muted-foreground line-through"
+        >
+          Tam. {v.size}
+        </span>
+      ))}
     </div>
   );
 }

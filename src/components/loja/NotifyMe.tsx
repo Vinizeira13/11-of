@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { BellRing, Check } from "lucide-react";
 import {
   Dialog,
@@ -11,32 +11,36 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { joinWaitlistAction } from "@/app/_actions/notify";
 
 export function NotifyMe({
+  productId,
   productName,
-  productSlug,
 }: {
+  productId: string;
   productName: string;
-  productSlug: string;
 }) {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.includes("@")) {
       toast.error("E-mail inválido.");
       return;
     }
-    try {
-      window.localStorage.setItem(
-        `11of:notify:${productSlug}`,
-        JSON.stringify({ email, at: Date.now() }),
+    startTransition(async () => {
+      const res = await joinWaitlistAction(productId, email);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setDone(true);
+      toast.success(
+        res.duplicate ? "Você já estava na lista." : "Você entrou na lista.",
+        { description: "Avisamos assim que essa camisa voltar." },
       );
-    } catch {}
-    setDone(true);
-    toast.success("Você está na lista.", {
-      description: "A gente avisa assim que essa camisa voltar.",
     });
   }
 
@@ -57,9 +61,10 @@ export function NotifyMe({
             Avisar quando voltar
           </DialogTitle>
           <DialogDescription>
-            Deixe o e-mail e você é o primeiro a saber quando{" "}
+            Deixe o e-mail e você é avisado assim que{" "}
             <span className="font-medium text-foreground">{productName}</span>{" "}
-            voltar pro estoque.
+            voltar pro estoque. A gente só manda esse aviso — sem newsletter
+            extra.
           </DialogDescription>
         </DialogHeader>
 
@@ -72,7 +77,7 @@ export function NotifyMe({
               Inscrito com sucesso.
             </p>
             <p className="text-sm text-muted-foreground">
-              A gente manda um e-mail assim que tiver novidade — sem spam.
+              Você recebe um email assim que a reposição chegar.
             </p>
           </div>
         ) : (
@@ -84,15 +89,17 @@ export function NotifyMe({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               className="h-12 w-full rounded-lg border border-border/70 bg-card/40 px-4 text-sm outline-none focus:border-foreground"
+              disabled={isPending}
             />
             <button
               type="submit"
-              className="h-12 w-full rounded-full bg-turf text-sm font-semibold text-turf-foreground hover:bg-turf/90 transition"
+              disabled={isPending}
+              className="h-12 w-full rounded-full bg-turf text-sm font-semibold text-turf-foreground hover:bg-turf/90 transition disabled:opacity-60"
             >
-              Me avise
+              {isPending ? "Entrando na lista…" : "Me avise"}
             </button>
             <p className="text-[11px] text-muted-foreground">
-              Sem spam. Você pode cancelar quando quiser.
+              Usamos o email apenas pra esse aviso. Nada de spam.
             </p>
           </form>
         )}

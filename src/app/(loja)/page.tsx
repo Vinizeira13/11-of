@@ -5,7 +5,7 @@ import { FeaturedGrid } from "@/components/loja/FeaturedGrid";
 import { MidBanner } from "@/components/loja/MidBanner";
 import { EditorialSection } from "@/components/loja/EditorialSection";
 import { Manifesto } from "@/components/loja/Manifesto";
-import { PressBand } from "@/components/loja/PressBand";
+import { PartnersBand } from "@/components/loja/PartnersBand";
 import { TrustBand } from "@/components/loja/TrustBand";
 import { RecentlyViewed } from "@/components/loja/RecentlyViewed";
 import { getPublishedProducts } from "@/lib/catalog";
@@ -29,7 +29,7 @@ export default async function HomePage() {
       <Manifesto />
       <EditorialSection products={editorialSource} />
       <MidBanner />
-      <PressBand />
+      <PartnersBand />
       <FeaturedGrid
         products={featured.slice(4, 8)}
         kicker="Reservas"

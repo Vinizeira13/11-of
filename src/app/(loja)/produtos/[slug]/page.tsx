@@ -16,7 +16,7 @@ import { WishlistButton } from "@/components/loja/WishlistButton";
 import { ColorSwatches } from "@/components/loja/ColorSwatches";
 import { ShareButtons } from "@/components/loja/ShareButtons";
 import { FitCalculator } from "@/components/loja/FitCalculator";
-import { ReviewsBadge } from "@/components/loja/ReviewsBadge";
+import { TrustChips } from "@/components/loja/TrustChips";
 import { ScrollProgress } from "@/components/loja/ScrollProgress";
 import { TrackRecentlyViewed } from "@/components/loja/TrackRecentlyViewed";
 import { RecentlyViewed } from "@/components/loja/RecentlyViewed";
@@ -76,11 +76,6 @@ export default async function ProductPage(
     image: product.images,
     sku: product.id,
     brand: { "@type": "Brand", name: "Nike" },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.9",
-      reviewCount: "12",
-    },
     offers: {
       "@type": "Offer",
       url: `${SITE_URL}/produtos/${product.slug}`,
@@ -178,10 +173,7 @@ export default async function ProductPage(
                   </div>
                 </div>
 
-                <SocialProof
-                  productId={product.id}
-                  isBestseller={team?.code === "BRA"}
-                />
+                <SocialProof />
 
                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                   {categoryLabel}
@@ -190,7 +182,7 @@ export default async function ProductPage(
                   {product.name}
                 </h1>
 
-                <ReviewsBadge rating={4.9} reviewCount={12} />
+                <TrustChips />
 
                 <div className="flex items-baseline gap-3">
                   <span className="font-display text-3xl font-semibold tabular-nums">
@@ -237,8 +229,8 @@ export default async function ProductPage(
               <div id="pdp-cta" className={cn(isSoldOut && "opacity-60")}>
                 {isSoldOut ? (
                   <NotifyMe
+                    productId={product.id}
                     productName={product.name}
-                    productSlug={product.slug}
                   />
                 ) : (
                   <AddToCartButton

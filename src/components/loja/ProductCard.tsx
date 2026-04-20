@@ -12,11 +12,9 @@ import { WishlistButton } from "./WishlistButton";
 export function ProductCard({
   product,
   priority = false,
-  showBestseller = false,
 }: {
   product: Product;
   priority?: boolean;
-  showBestseller?: boolean;
 }) {
   const totalStock = product.variants.reduce((s, v) => s + v.stockQty, 0);
   const isSoldOut = totalStock === 0;
@@ -86,12 +84,7 @@ export function ProductCard({
           )}
 
           <div className="absolute bottom-14 left-3 flex flex-wrap gap-1.5">
-            {showBestseller && !isSoldOut && (
-              <span className="rounded-full bg-turf px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-turf-foreground">
-                ★ mais vendida
-              </span>
-            )}
-            {hasDiscount && !isSoldOut && !showBestseller && (
+            {hasDiscount && !isSoldOut && (
               <span className="rounded-full bg-turf px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-turf-foreground">
                 −{discountPct}%
               </span>
