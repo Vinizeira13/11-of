@@ -109,9 +109,12 @@ function buildBody(req: PagnetCreateRequest): Record<string, unknown> {
       title: i.title,
       unitPrice: i.unitPriceCents,
       quantity: i.quantity,
-      // PagNet acquirer rejects tangible:true on this account tier (returns
-      // "Erro na adquirente"). Logistics + delivery tracking happens off-
-      // platform. Default to false so charges go through.
+      // TODO: switch back to `i.tangible ?? true` once PagNet liberates the
+      // physical-goods permission on company 42157. Today they 424 "Erro na
+      // adquirente" on tangible:true. Workaround: declare every item as
+      // intangible so the acquirer accepts. Compliance risk: PagNet may
+      // audit and notice we sell physical jerseys marked as services.
+      // Open a support ticket to enable physical goods, then revert.
       tangible: i.tangible ?? false,
       ...(i.externalRef ? { externalRef: i.externalRef } : {}),
     })),
