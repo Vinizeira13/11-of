@@ -71,6 +71,9 @@ export async function POST(req: NextRequest) {
     updates.payment_status = "completed";
     updates.status = "paid";
     updates.paid_at = event.paidAt ?? new Date().toISOString();
+    // Auto-advance the delivery lifecycle so the customer's timeline moves
+    // without waiting for a human to click anything in the admin.
+    updates.delivery_status = "preparing";
   } else if (isRefused) {
     updates.payment_status = "cancelled";
     updates.status = "cancelled";

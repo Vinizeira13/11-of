@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { PixDisplay } from "@/components/loja/PixDisplay";
+import { DeliveryTimeline } from "@/components/loja/DeliveryTimeline";
 import {
   PostPurchaseUpsell,
   type UpsellProduct,
@@ -59,8 +60,22 @@ type OrderRow = {
   payment_status: string;
   pix_copy_paste: string | null;
   pix_expires_at: string | null;
+  paid_at: string | null;
+  created_at: string;
   shipping_address: OrderAddress;
   order_items: OrderItemRow[];
+  delivery_status:
+    | "pending"
+    | "preparing"
+    | "dispatched"
+    | "delivered"
+    | "returned"
+    | "cancelled";
+  tracking_code: string | null;
+  tracking_carrier: string | null;
+  dispatched_at: string | null;
+  delivered_at: string | null;
+  delivery_notes: string | null;
 };
 
 type UpsellCoupon = { code: string; discount_pct: number; expires_at: string };
@@ -71,7 +86,10 @@ async function loadOrder(id: string): Promise<OrderRow | null> {
     .from("orders")
     .select(
       `id, short_code, customer_email, subtotal_cents, shipping_cents, total_cents,
-       payment_status, pix_copy_paste, pix_expires_at, shipping_address,
+       payment_status, pix_copy_paste, pix_expires_at, paid_at, created_at,
+       shipping_address,
+       delivery_status, tracking_code, tracking_carrier, dispatched_at,
+       delivered_at, delivery_notes,
        order_items(variant_id, qty, unit_price_cents, product_name_snapshot, variant_size_snapshot, image_snapshot, product_id, product:product_id(slug))`,
     )
     .eq("id", id)
@@ -171,41 +189,46 @@ export default async function OrderPage(props: PageProps<"/pedido/[id]">) {
       </header>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_400px] lg:gap-14">
-        <section className="rounded-xl border border-border/60 p-6 md:p-8">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider">
-              Pagamento PIX
-            </h2>
-            <Badge
-              variant={isPaid ? "default" : "secondary"}
-              className="rounded-full"
-            >
-              {isPaid ? (
-                <>
-                  <CheckCircle2 data-icon="inline-start" />
-                  Pago
-                </>
-              ) : (
-                "Aguardando pagamento"
-              )}
-            </Badge>
+        <section className="space-y-8">
+          <div className="rounded-xl border border-border/60 p-6 md:p-8">
+            <DeliveryTimeline
+              createdAt={order.created_at}
+              paidAt={order.paid_at}
+              deliveryStatus={order.delivery_status}
+              dispatchedAt={order.dispatched_at}
+              deliveredAt={order.delivered_at}
+              trackingCode={order.tracking_code}
+              trackingCarrier={order.tracking_carrier}
+              deliveryNotes={order.delivery_notes}
+            />
           </div>
 
-          {order.pix_copy_paste ? (
-            <PixDisplay
-              orderId={order.id}
-              initialPayload={order.pix_copy_paste}
-              initialExpiresAt={pixExpiresAtMs}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              PIX indisponível. Gere um novo abaixo.
-            </p>
-          )}
+          {!isPaid && (
+            <div className="rounded-xl border border-border/60 p-6 md:p-8">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wider">
+                  Pagamento PIX
+                </h2>
+                <Badge variant="secondary" className="rounded-full">
+                  Aguardando pagamento
+                </Badge>
+              </div>
 
-          <Separator className="my-8" />
+              {order.pix_copy_paste ? (
+                <PixDisplay
+                  orderId={order.id}
+                  initialPayload={order.pix_copy_paste}
+                  initialExpiresAt={pixExpiresAtMs}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  PIX indisponível. Gere um novo abaixo.
+                </p>
+              )}
 
-          <ol className="space-y-3 text-sm text-muted-foreground">
+              <Separator className="my-8" />
+
+              <ol className="space-y-3 text-sm text-muted-foreground">
             <li>
               <span className="mr-2 font-semibold text-foreground">1.</span>
               Abra o app do seu banco e escolha pagar via PIX.
@@ -222,7 +245,9 @@ export default async function OrderPage(props: PageProps<"/pedido/[id]">) {
               </span>
               .
             </li>
-          </ol>
+              </ol>
+            </div>
+          )}
         </section>
 
         <aside className="lg:order-last">
