@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { createPixCharge } from "@/lib/pagnet/client";
 import { SITE_URL } from "@/lib/brand";
 
 const PIX_TTL_MS = 24 * 60 * 60 * 1000; // PagNet uses 1-day expirationDate
 
 export async function regeneratePixAction(orderId: string) {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data: order } = await supabase
     .from("orders")
     .select(
@@ -108,14 +108,12 @@ export async function regeneratePixAction(orderId: string) {
 
     const expiresAtMs = Date.now() + PIX_TTL_MS;
 
-    await supabase
-      .from("orders")
-      .update({
-        payment_id: charge.id,
-        pix_copy_paste: charge.pixCopyPaste,
-        pix_expires_at: new Date(expiresAtMs).toISOString(),
-      })
-      .eq("id", orderId);
+    await supabase.rpc("set_order_pix", {
+      p_order_id: orderId,
+      p_payment_id: charge.id,
+      p_pix_copy_paste: charge.pixCopyPaste,
+      p_pix_expires_at: new Date(expiresAtMs).toISOString(),
+    });
 
     revalidatePath(`/pedido/${orderId}`);
     return {

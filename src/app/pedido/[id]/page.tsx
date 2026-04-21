@@ -13,7 +13,7 @@ import {
 } from "@/components/loja/PostPurchaseUpsell";
 import { getPublishedProducts } from "@/lib/catalog";
 import { splitImages } from "@/lib/images";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { formatBRL } from "@/lib/money";
 import { SUPPORT_EMAIL } from "@/lib/brand";
 import {
@@ -77,7 +77,7 @@ type OrderRow = {
 type UpsellCoupon = { code: string; discount_pct: number; expires_at: string };
 
 async function loadOrder(id: string): Promise<OrderRow | null> {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
     .select(
@@ -94,7 +94,7 @@ async function loadOrder(id: string): Promise<OrderRow | null> {
 }
 
 async function loadUpsellCoupon(): Promise<UpsellCoupon | null> {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("coupons")
     .select("code, discount_pct, expires_at")
@@ -107,7 +107,7 @@ export async function generateMetadata(
   props: PageProps<"/pedido/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
     .select("short_code")

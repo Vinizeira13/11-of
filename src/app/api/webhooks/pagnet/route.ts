@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import {
   getCharge,
   isPagnetConfigured,
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "missing objectId" }, { status: 400 });
   }
 
-  const supabase = createServiceClient();
+  const supabase = await createClient();
 
   // Idempotency — must come before the canonical fetch to avoid hammering
   // PagNet on duplicate postbacks.
@@ -132,54 +132,38 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const updates: Record<string, unknown> = {};
   if (isPaid) {
-    updates.payment_status = "completed";
-    updates.status = "paid";
-    updates.paid_at = event.paidAt ?? new Date().toISOString();
-  } else if (isRefused) {
-    updates.payment_status = "cancelled";
-    updates.status = "cancelled";
-  } else if (isRefunded) {
-    updates.payment_status = "refunded";
-    updates.status = "cancelled";
-  }
-
-  const { data: order, error: orderErr } = await supabase
-    .from("orders")
-    .update(updates)
-    .eq("id", orderId)
-    .select("id, status, payment_status, order_items(variant_id, qty)")
-    .maybeSingle();
-
-  if (orderErr || !order) {
-    return NextResponse.json(
-      { error: orderErr?.message ?? "order update failed" },
-      { status: 500 },
-    );
-  }
-
-  // Auto-advance delivery_status from pending→preparing ONLY on that
-  // initial transition. A reconciliation postback must not regress an
-  // order the admin has already moved to dispatched.
-  if (isPaid) {
-    await supabase
-      .from("orders")
-      .update({ delivery_status: "preparing" })
-      .eq("id", orderId)
-      .eq("delivery_status", "pending");
-  }
-
-  // Release stock on terminal failure paths
-  if (isRefused || isRefunded) {
-    const items =
-      (order.order_items as { variant_id: string; qty: number }[]) ?? [];
-    for (const item of items) {
-      await supabase.rpc("release_stock", {
-        p_variant_id: item.variant_id,
-        p_qty: item.qty,
-      });
+    const { error: rpcErr } = await supabase.rpc("webhook_mark_paid", {
+      p_order_id: orderId,
+      p_paid_at: event.paidAt ?? new Date().toISOString(),
+    });
+    if (rpcErr) {
+      return NextResponse.json({ error: rpcErr.message }, { status: 500 });
     }
+    return NextResponse.json({ ok: true, status });
+  }
+
+  // Failure paths: mark order cancelled/refunded then release stock so
+  // sizes go back to buyable.
+  const terminalStatus = isRefused ? "cancelled" : "refunded";
+  const { error: failErr } = await supabase.rpc("webhook_mark_failed", {
+    p_order_id: orderId,
+    p_payment_status: terminalStatus,
+  });
+  if (failErr) {
+    return NextResponse.json({ error: failErr.message }, { status: 500 });
+  }
+
+  const { data: items } = await supabase
+    .from("order_items")
+    .select("variant_id, qty")
+    .eq("order_id", orderId);
+
+  for (const item of (items as { variant_id: string; qty: number }[]) ?? []) {
+    await supabase.rpc("release_stock", {
+      p_variant_id: item.variant_id,
+      p_qty: item.qty,
+    });
   }
 
   return NextResponse.json({ ok: true, status });

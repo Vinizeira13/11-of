@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
   productId: z.string().uuid("produto inválido"),
@@ -26,7 +26,7 @@ export async function joinWaitlistAction(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("notify_waitlist").insert({
     product_id: parsed.data.productId,
     email: parsed.data.email,

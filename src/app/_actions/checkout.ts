@@ -8,7 +8,7 @@ import { cpfDigitsOnly, isValidCPF } from "@/lib/cpf";
 import { resolveCartLines } from "@/lib/catalog";
 import { pixDiscountCents } from "@/lib/pricing";
 import { shippingFor } from "@/lib/shipping";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { createPixCharge } from "@/lib/pagnet/client";
 import { SITE_URL } from "@/lib/brand";
 
@@ -91,7 +91,7 @@ export async function createOrderAction(
   }
   const data = parsed.data;
 
-  const supabase = createServiceClient();
+  const supabase = await createClient();
 
   const reservedVariants: { variantId: string; qty: number }[] = [];
   async function releaseAll() {
@@ -177,7 +177,7 @@ export async function createOrderAction(
   );
 
   if (itemsErr) {
-    await supabase.from("orders").delete().eq("id", order.id);
+    await supabase.rpc("delete_pending_order", { p_order_id: order.id });
     await releaseAll();
     return { formError: "Falha ao registrar itens." };
   }
@@ -217,22 +217,19 @@ export async function createOrderAction(
       },
     });
   } catch (err) {
-    await supabase.from("order_items").delete().eq("order_id", order.id);
-    await supabase.from("orders").delete().eq("id", order.id);
+    await supabase.rpc("delete_pending_order", { p_order_id: order.id });
     await releaseAll();
     return {
       formError: err instanceof Error ? err.message : "Falha ao gerar PIX.",
     };
   }
 
-  await supabase
-    .from("orders")
-    .update({
-      payment_id: charge.id,
-      pix_copy_paste: charge.pixCopyPaste,
-      pix_expires_at: new Date(Date.now() + PIX_TTL_MS).toISOString(),
-    })
-    .eq("id", order.id);
+  await supabase.rpc("set_order_pix", {
+    p_order_id: order.id,
+    p_payment_id: charge.id,
+    p_pix_copy_paste: charge.pixCopyPaste,
+    p_pix_expires_at: new Date(Date.now() + PIX_TTL_MS).toISOString(),
+  });
 
   await clearCart();
   redirect(`/pedido/${order.id}`);
