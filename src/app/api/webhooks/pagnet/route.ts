@@ -71,9 +71,6 @@ export async function POST(req: NextRequest) {
     updates.payment_status = "completed";
     updates.status = "paid";
     updates.paid_at = event.paidAt ?? new Date().toISOString();
-    // Auto-advance the delivery lifecycle so the customer's timeline moves
-    // without waiting for a human to click anything in the admin.
-    updates.delivery_status = "preparing";
   } else if (isRefused) {
     updates.payment_status = "cancelled";
     updates.status = "cancelled";
@@ -91,6 +88,17 @@ export async function POST(req: NextRequest) {
     .eq("id", event.externalRef)
     .select("id, status, payment_status, order_items(variant_id, qty)")
     .maybeSingle();
+
+  // Separate conditional update: only auto-advance delivery_status if it's
+  // still the initial "pending". A later reconciliation webhook must NOT
+  // regress an order the admin has already moved to dispatched/delivered.
+  if (isPaid) {
+    await supabase
+      .from("orders")
+      .update({ delivery_status: "preparing" })
+      .eq("id", event.externalRef)
+      .eq("delivery_status", "pending");
+  }
 
   if (orderErr || !order) {
     return NextResponse.json(

@@ -4,22 +4,37 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { adminLoginAction, isAdmin } from "@/app/_actions/delivery";
 
+function safeNext(next: string | undefined): string {
+  // Only allow same-origin admin paths — never let ?next= redirect off-site.
+  if (!next) return "/admin/pedidos";
+  if (!next.startsWith("/admin/")) return "/admin/pedidos";
+  return next;
+}
+
 export default async function AdminLoginPage(props: {
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const { error, next } = await props.searchParams;
+  const nextPath = safeNext(next);
 
   if (await isAdmin()) {
-    redirect(next || "/admin/pedidos");
+    redirect(nextPath);
   }
 
   async function login(formData: FormData) {
     "use server";
     const res = await adminLoginAction(formData);
+    const to = safeNext(
+      typeof formData.get("next") === "string"
+        ? (formData.get("next") as string)
+        : undefined,
+    );
     if (!res.ok) {
-      redirect(`/admin/login?error=${encodeURIComponent(res.error ?? "erro")}`);
+      redirect(
+        `/admin/login?error=${encodeURIComponent(res.error ?? "erro")}${next ? `&next=${encodeURIComponent(next)}` : ""}`,
+      );
     }
-    redirect("/admin/pedidos");
+    redirect(to);
   }
 
   return (
@@ -33,6 +48,7 @@ export default async function AdminLoginPage(props: {
       </p>
 
       <form action={login} className="mt-8 flex flex-col gap-4">
+        <input type="hidden" name="next" value={nextPath} />
         <div>
           <label
             htmlFor="password"

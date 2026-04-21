@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Check, ExternalLink } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ type Order = {
   tracking_code: string | null;
   tracking_carrier: string | null;
   delivery_notes: string | null;
+  order_notes: string | null;
   dispatched_at: string | null;
   delivered_at: string | null;
   paid_at: string | null;
@@ -56,14 +57,26 @@ const STATUSES = [
   { value: "cancelled", label: "Cancelado" },
 ] as const;
 
+const fmtDateTime = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "short",
+  year: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 export default async function AdminOrderPage(props: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ err?: string; ok?: string }>;
 }) {
   if (!(await isAdmin())) {
     redirect("/admin/login");
   }
 
-  const { id } = await props.params;
+  const [{ id }, { err, ok }] = await Promise.all([
+    props.params,
+    props.searchParams,
+  ]);
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("orders")
@@ -71,7 +84,7 @@ export default async function AdminOrderPage(props: {
       `id, short_code, customer_name, customer_email, customer_phone,
        total_cents, subtotal_cents, shipping_cents,
        payment_status, delivery_status, tracking_code, tracking_carrier,
-       delivery_notes, dispatched_at, delivered_at, paid_at, created_at,
+       delivery_notes, order_notes, dispatched_at, delivered_at, paid_at, created_at,
        shipping_address,
        order_items(qty, unit_price_cents, product_name_snapshot, variant_size_snapshot)`,
     )
@@ -85,20 +98,22 @@ export default async function AdminOrderPage(props: {
     "use server";
     const res = await updateDeliveryAction(formData);
     if (!res.ok) {
-      // fall through; the page will re-render fresh via revalidate
-      console.error(res.error);
+      redirect(
+        `/admin/pedidos/${id}?err=${encodeURIComponent(res.error)}`,
+      );
     }
-    redirect(`/admin/pedidos/${id}`);
+    redirect(`/admin/pedidos/${id}?ok=1`);
   }
 
   const trackUrl = carrierTrackUrl(order.tracking_carrier, order.tracking_code);
   const addr = order.shipping_address;
-  const fmt = new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+
+  const timestamps: Array<{ label: string; at: string | null }> = [
+    { label: "Pedido criado", at: order.created_at },
+    { label: "Pago", at: order.paid_at },
+    { label: "Despachado", at: order.dispatched_at },
+    { label: "Entregue", at: order.delivered_at },
+  ];
 
   return (
     <div>
@@ -128,17 +143,39 @@ export default async function AdminOrderPage(props: {
               "rounded-full border-0",
               order.payment_status === "completed"
                 ? "bg-turf/20 text-turf"
-                : "bg-muted text-muted-foreground",
+                : order.payment_status === "cancelled" ||
+                    order.payment_status === "refunded"
+                  ? "bg-destructive/20 text-destructive"
+                  : "bg-muted text-muted-foreground",
             )}
           >
-            {order.payment_status === "completed" ? "Pago" : order.payment_status}
+            {order.payment_status === "completed"
+              ? "Pago"
+              : order.payment_status === "cancelled"
+                ? "Pagto. cancelado"
+                : order.payment_status === "refunded"
+                  ? "Reembolsado"
+                  : order.payment_status}
           </Badge>
           <p className="text-xs text-muted-foreground">
             {formatBRL(order.total_cents)} ·{" "}
-            {fmt.format(new Date(order.paid_at ?? order.created_at))}
+            {fmtDateTime.format(new Date(order.paid_at ?? order.created_at))}
           </p>
         </div>
       </header>
+
+      {err && (
+        <div className="mt-6 flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>{err}</p>
+        </div>
+      )}
+      {ok && !err && (
+        <div className="mt-6 flex items-start gap-2 rounded-xl border border-turf/40 bg-turf/10 p-3 text-sm text-turf">
+          <Check className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>Atualização salva.</p>
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_360px]">
         {/* Update form */}
@@ -264,6 +301,41 @@ export default async function AdminOrderPage(props: {
               Salvar atualização
             </Button>
           </form>
+
+          {/* Timeline of real timestamps so ops can see exactly what happened */}
+          <div className="mt-10">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Linha do tempo
+            </h3>
+            <ol className="mt-3 space-y-1.5 text-sm">
+              {timestamps.map((t) => (
+                <li
+                  key={t.label}
+                  className="flex items-baseline justify-between gap-3 border-b border-border/40 py-1.5 last:border-b-0"
+                >
+                  <span
+                    className={cn(
+                      t.at ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {t.label}
+                  </span>
+                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                    {t.at ? fmtDateTime.format(new Date(t.at)) : "—"}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {order.order_notes && (
+            <div className="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-500">
+                Observação do cliente
+              </p>
+              <p className="mt-1 text-foreground/90">{order.order_notes}</p>
+            </div>
+          )}
         </section>
 
         {/* Summary */}
