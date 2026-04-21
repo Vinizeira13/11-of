@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { CARRIERS, carrierTrackUrl } from "@/lib/carriers";
 import { formatBRL } from "@/lib/money";
 import { isAdmin, updateDeliveryAction } from "@/app/_actions/delivery";
@@ -78,7 +78,7 @@ export default async function AdminOrderPage(props: {
     props.params,
     props.searchParams,
   ]);
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
     .select(

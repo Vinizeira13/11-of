@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 
 const ADMIN_COOKIE = "11of:admin";
 
@@ -68,34 +68,20 @@ export async function updateDeliveryAction(formData: FormData): Promise<Delivery
   }
 
   const data = parsed.data;
-  const supabase = createServiceClient();
-
-  const patch: Record<string, unknown> = {
-    delivery_status: data.status,
-    tracking_code: data.trackingCode,
-    tracking_carrier: data.trackingCarrier,
-    delivery_notes: data.notes,
-  };
-
-  // Timestamp book-keeping so the timeline renders correctly
-  if (data.status === "dispatched") {
-    patch.dispatched_at = new Date().toISOString();
-  } else if (data.status === "delivered") {
-    patch.delivered_at = new Date().toISOString();
-    // If admin jumped straight to delivered without a prior dispatched,
-    // stamp dispatched_at as well so the timeline isn't broken.
-    patch.dispatched_at =
-      (await supabase
-        .from("orders")
-        .select("dispatched_at")
-        .eq("id", data.orderId)
-        .maybeSingle()).data?.dispatched_at ?? new Date().toISOString();
+  const adminToken = process.env.ADMIN_RPC_TOKEN;
+  if (!adminToken) {
+    return { ok: false, error: "ADMIN_RPC_TOKEN não configurado." };
   }
 
-  const { error } = await supabase
-    .from("orders")
-    .update(patch)
-    .eq("id", data.orderId);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_update_delivery", {
+    p_admin_token: adminToken,
+    p_order_id: data.orderId,
+    p_status: data.status,
+    p_tracking_code: data.trackingCode,
+    p_tracking_carrier: data.trackingCarrier,
+    p_notes: data.notes,
+  });
 
   if (error) {
     return { ok: false, error: error.message };

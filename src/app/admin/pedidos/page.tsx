@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Archive, ChevronRight, Clock, Package, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { formatBRL } from "@/lib/money";
 import { isAdmin } from "@/app/_actions/delivery";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export default async function AdminPedidosPage() {
     redirect("/admin/login?next=/admin/pedidos");
   }
 
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
     .select(
