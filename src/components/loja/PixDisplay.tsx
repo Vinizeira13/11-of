@@ -5,8 +5,8 @@ import { Check, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
+import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
-import { MockQrCode } from "@/components/loja/MockQrCode";
 import { regeneratePixAction } from "@/app/_actions/pix";
 
 gsap.registerPlugin(useGSAP);
@@ -140,9 +140,20 @@ export function PixDisplay({
         data-pix-qr
         className="relative mx-auto w-full max-w-[280px] origin-center will-change-transform"
       >
-        <MockQrCode payload={payload} />
+        <div className="rounded-2xl border border-border/60 bg-white p-4 shadow-sm">
+          <QRCodeSVG
+            value={payload}
+            size={248}
+            level="M"
+            marginSize={0}
+            // High contrast for reliable scanning under any lighting
+            fgColor="#0a0a0a"
+            bgColor="#ffffff"
+            className="size-full"
+          />
+        </div>
         {expired && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/90 backdrop-blur-sm">
             <div className="text-center">
               <p className="text-sm font-semibold">PIX expirado</p>
               <p className="mt-1 text-xs text-muted-foreground">

@@ -9,7 +9,10 @@ import { resolveCartLines } from "@/lib/catalog";
 import { pixDiscountCents } from "@/lib/pricing";
 import { shippingFor } from "@/lib/shipping";
 import { createServiceClient } from "@/lib/supabase/service";
-import { createPixCharge } from "@/lib/pague/client";
+import { createPixCharge } from "@/lib/pagnet/client";
+import { SITE_URL } from "@/lib/brand";
+
+const PIX_TTL_MS = 24 * 60 * 60 * 1000; // PagNet 1-day expiration
 
 const formSchema = z.object({
   email: z.string().email("Falta o @ ou o domínio — ex: voce@gmail.com."),
@@ -182,14 +185,35 @@ export async function createOrderAction(
   let charge;
   try {
     charge = await createPixCharge({
-      amount: totalCents,
-      description: `Pedido ${shortCode}`,
-      externalId: order.id,
+      amountCents: totalCents,
+      externalRef: order.id,
+      postbackUrl: `${SITE_URL}/api/webhooks/pagnet`,
+      metadata: JSON.stringify({ orderId: order.id, shortCode }),
+      items: resolved.map((line) => ({
+        title: `${line.product.name} (${line.variant.size})`,
+        unitPriceCents: line.product.priceCents,
+        quantity: line.qty,
+        tangible: true,
+        externalRef: line.product.slug,
+      })),
       customer: {
         name: data.name,
-        document: data.cpf,
         email: data.email,
         phone: data.phone,
+        cpf: data.cpf,
+      },
+      shipping: {
+        feeCents: shippingCents,
+        address: {
+          street: data.logradouro,
+          streetNumber: data.numero,
+          complement: data.complemento,
+          neighborhood: data.bairro,
+          city: data.cidade,
+          state: data.uf,
+          zipCode: data.cep,
+          country: "BR",
+        },
       },
     });
   } catch (err) {
@@ -206,8 +230,7 @@ export async function createOrderAction(
     .update({
       payment_id: charge.id,
       pix_copy_paste: charge.pixCopyPaste,
-      pix_qr_code_base64: charge.pixQrCodeBase64,
-      pix_expires_at: charge.expiresAt,
+      pix_expires_at: new Date(Date.now() + PIX_TTL_MS).toISOString(),
     })
     .eq("id", order.id);
 
