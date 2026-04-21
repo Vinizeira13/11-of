@@ -112,14 +112,20 @@ export function CartProvider({
       await new Promise<void>((resolve) => {
         startTransition(async () => {
           dispatch({ type: "add", variantId, qty });
-          const res = await addToCartAction(variantId, qty);
-          if (res.ok) {
-            setBaseLines(res.lines);
-          } else {
+          try {
+            const res = await addToCartAction(variantId, qty);
+            if (res.ok) {
+              setBaseLines(res.lines);
+            } else {
+              success = false;
+              toast.error(res.error);
+            }
+          } catch {
             success = false;
-            toast.error(res.error);
+            toast.error("Não deu pra adicionar agora. Tenta de novo.");
+          } finally {
+            resolve();
           }
-          resolve();
         });
       });
       if (success && openOnSuccess) setIsOpen(true);
@@ -161,10 +167,15 @@ export function CartProvider({
       await new Promise<void>((resolve) => {
         startTransition(async () => {
           dispatch({ type: "updateQty", variantId, qty });
-          const res = await updateCartQtyAction(variantId, qty);
-          if (res.ok) setBaseLines(res.lines);
-          else toast.error(res.error);
-          resolve();
+          try {
+            const res = await updateCartQtyAction(variantId, qty);
+            if (res.ok) setBaseLines(res.lines);
+            else toast.error(res.error);
+          } catch {
+            toast.error("Não deu pra atualizar agora. Tenta de novo.");
+          } finally {
+            resolve();
+          }
         });
       });
     },
@@ -176,9 +187,14 @@ export function CartProvider({
       await new Promise<void>((resolve) => {
         startTransition(async () => {
           dispatch({ type: "remove", variantId });
-          const res = await removeFromCartAction(variantId);
-          if (res.ok) setBaseLines(res.lines);
-          resolve();
+          try {
+            const res = await removeFromCartAction(variantId);
+            if (res.ok) setBaseLines(res.lines);
+          } catch {
+            toast.error("Não deu pra remover agora. Tenta de novo.");
+          } finally {
+            resolve();
+          }
         });
       });
     },
