@@ -162,11 +162,14 @@ export function CheckoutForm({ totalCents }: { totalCents: number }) {
   ]);
 
   // -------- Derived validity --------
-  const emailValid = emailTouched && isLikelyValidEmail(email);
+  // Validity is computed from the current value only — `touched` is about
+  // whether to SHOW errors, not whether the value is good. That way a
+  // hydrated draft lights up the green checks + progress immediately.
+  const emailValid = isLikelyValidEmail(email);
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneValid = phoneDigits.length >= 10;
   const nameValid = name.trim().split(/\s+/).length >= 2;
-  const cpfValid = cpfTouched && isValidCPF(cpf);
+  const cpfValid = isValidCPF(cpf);
   const cpfBadlyFormed =
     cpfTouched && cpf.replace(/\D/g, "").length === 11 && !cpfValid;
   const cepDigits = cep.replace(/\D/g, "");

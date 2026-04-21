@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Check, Copy, Gift, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import type { Product } from "@/lib/catalog";
 import { BLUR_DATA_URL } from "@/lib/images";
 import { formatBRL } from "@/lib/money";
 import { PIX_DISCOUNT_PCT } from "@/lib/brand";

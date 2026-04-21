@@ -13,7 +13,8 @@ export async function regeneratePixAction(orderId: string) {
     .from("orders")
     .select(
       `id, short_code, customer_name, customer_email, customer_doc, customer_phone,
-       total_cents, payment_status, shipping_address, shipping_cents,
+       total_cents, payment_status, pix_copy_paste, pix_expires_at,
+       shipping_address, shipping_cents,
        order_items(qty, unit_price_cents, product_name_snapshot, variant_size_snapshot)`,
     )
     .eq("id", orderId)
@@ -22,6 +23,33 @@ export async function regeneratePixAction(orderId: string) {
   if (!order) return { ok: false as const, error: "Pedido não encontrado." };
   if (order.payment_status === "completed") {
     return { ok: false as const, error: "Pedido já foi pago." };
+  }
+  if (
+    order.payment_status === "cancelled" ||
+    order.payment_status === "refunded"
+  ) {
+    return {
+      ok: false as const,
+      error: "Esse pedido foi cancelado — abra um novo.",
+    };
+  }
+  // Block double-charge: if there's already a usable PIX in flight, refuse
+  // to mint a second PagNet transaction for the same order. The customer
+  // just needs to pay the one they have.
+  const expiresMs = order.pix_expires_at
+    ? new Date(order.pix_expires_at).getTime()
+    : 0;
+  const hasActivePix =
+    typeof order.pix_copy_paste === "string" &&
+    order.pix_copy_paste.length > 0 &&
+    Number.isFinite(expiresMs) &&
+    expiresMs > Date.now();
+
+  if (hasActivePix) {
+    return {
+      ok: false as const,
+      error: "O PIX atual ainda está válido. Use ele pra pagar.",
+    };
   }
 
   const addr = order.shipping_address as {
