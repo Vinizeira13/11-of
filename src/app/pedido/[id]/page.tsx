@@ -328,17 +328,11 @@ export default async function OrderPage(props: PageProps<"/pedido/[id]">) {
                   </Badge>
                 </div>
 
-                {order.pix_copy_paste ? (
-                  <PixDisplay
-                    orderId={order.id}
-                    initialPayload={order.pix_copy_paste}
-                    initialExpiresAt={pixExpiresAtMs}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    PIX indisponível. Gere um novo abaixo.
-                  </p>
-                )}
+                <PixDisplay
+                  orderId={order.id}
+                  initialPayload={order.pix_copy_paste}
+                  initialExpiresAt={pixExpiresAtMs}
+                />
 
                 <Separator className="my-8" />
 

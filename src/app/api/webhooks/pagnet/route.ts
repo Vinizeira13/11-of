@@ -1,20 +1,32 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { getCharge, parseWebhookEvent } from "@/lib/pagnet/client";
+import {
+  getCharge,
+  isPagnetConfigured,
+  parseWebhookEvent,
+} from "@/lib/pagnet/client";
 
 export const dynamic = "force-dynamic";
 
 /**
  * PagNet postback handler.
  *
- * Anti-spoof: PagNet doesn't document HMAC headers, so the only safe trust
- * anchor is the API itself. We re-fetch GET /transactions/{id} for the
- * `objectId` from the body and let that be the source of truth — never
- * commit a status change based purely on the inbound payload.
+ * Trust model:
+ *   - The request body is attacker-controlled. We use it only to get
+ *     objectId (transaction id) and eventId (idempotency key).
+ *   - Everything that drives state transitions (status, externalRef,
+ *     amount, paidAt) comes from GET /transactions/{objectId}, which is
+ *     authenticated with our PagNet credentials — only our transactions
+ *     are reachable, so the canonical response can't be forged.
  *
- * Idempotency: keyed on (postback envelope id) inserted into
- * public.webhook_events; duplicates short-circuit with 200.
+ * Without canonical truth, someone who knows a victim's order UUID could
+ * POST a "paid" body pointing to any real paid transaction and we'd mark
+ * the victim's order as paid. That's why canonical is required, not a
+ * fallback.
+ *
+ * Idempotency: keyed on postback envelope id, inserted into
+ * public.webhook_events. Duplicates short-circuit with 200.
  */
 export async function POST(req: NextRequest) {
   let payload: unknown;
@@ -29,17 +41,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid event" }, { status: 400 });
   }
 
-  // We only care about transaction events for now. Withdraws ignored.
+  // Withdraws ignored — we only process transaction events.
   if (event.type !== "transaction") {
     return NextResponse.json({ ok: true, ignored: event.type });
   }
-  if (!event.externalRef) {
-    return NextResponse.json({ error: "missing externalRef" }, { status: 400 });
+  if (!event.objectId) {
+    return NextResponse.json({ error: "missing objectId" }, { status: 400 });
   }
 
   const supabase = createServiceClient();
 
-  // Idempotency
+  // Idempotency — must come before the canonical fetch to avoid hammering
+  // PagNet on duplicate postbacks.
   const { error: idemErr } = await supabase
     .from("webhook_events")
     .insert({ event_id: event.eventId, event_type: `pagnet:${event.type}` });
@@ -50,21 +63,74 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "db error" }, { status: 500 });
   }
 
-  // Cross-check against PagNet to defeat spoofing
-  let canonical = null;
-  if (event.objectId) {
-    try {
-      canonical = await getCharge(event.objectId);
-    } catch {
-      // network blip; we'll fall back to body-only data with a soft-warning
-      canonical = null;
-    }
+  // Canonical truth is required — never fall back to body-only data.
+  // If we're not configured (mock mode) the webhook shouldn't be in use
+  // anyway; reject to avoid any chance of a dev deploy being spoofed.
+  if (!isPagnetConfigured()) {
+    return NextResponse.json({ error: "not configured" }, { status: 503 });
   }
 
-  const status = canonical?.status ?? event.status ?? "waiting_payment";
+  let canonical;
+  try {
+    canonical = await getCharge(event.objectId);
+  } catch {
+    // Transient failure — tell PagNet to retry later.
+    return NextResponse.json(
+      { error: "canonical fetch failed" },
+      { status: 503 },
+    );
+  }
+
+  if (!canonical) {
+    return NextResponse.json(
+      { error: "unknown transaction" },
+      { status: 404 },
+    );
+  }
+
+  const orderId = canonical.externalRef;
+  if (!orderId) {
+    return NextResponse.json(
+      { error: "canonical missing externalRef" },
+      { status: 422 },
+    );
+  }
+
+  const status = canonical.status;
   const isPaid = status === "paid" || status === "approved";
   const isRefused = status === "refused" || status === "cancelled";
   const isRefunded = status === "refunded" || status === "chargeback";
+
+  if (!isPaid && !isRefused && !isRefunded) {
+    return NextResponse.json({ ok: true, noChange: true, status });
+  }
+
+  // Amount cross-check — a paid/refunded transaction whose amount doesn't
+  // match what we'd charged is a strong signal something's off (could be a
+  // binding attack if externalRef somehow collided, or a data bug).
+  const { data: orderCheck } = await supabase
+    .from("orders")
+    .select("total_cents")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (!orderCheck) {
+    return NextResponse.json({ error: "order not found" }, { status: 404 });
+  }
+
+  if (
+    canonical.amountCents > 0 &&
+    canonical.amountCents !== orderCheck.total_cents
+  ) {
+    return NextResponse.json(
+      {
+        error: "amount mismatch",
+        expected: orderCheck.total_cents,
+        actual: canonical.amountCents,
+      },
+      { status: 422 },
+    );
+  }
 
   const updates: Record<string, unknown> = {};
   if (isPaid) {
@@ -77,34 +143,31 @@ export async function POST(req: NextRequest) {
   } else if (isRefunded) {
     updates.payment_status = "refunded";
     updates.status = "cancelled";
-  } else {
-    // No state-changing transition — acknowledge and stop.
-    return NextResponse.json({ ok: true, noChange: true, status });
   }
 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .update(updates)
-    .eq("id", event.externalRef)
+    .eq("id", orderId)
     .select("id, status, payment_status, order_items(variant_id, qty)")
     .maybeSingle();
 
-  // Separate conditional update: only auto-advance delivery_status if it's
-  // still the initial "pending". A later reconciliation webhook must NOT
-  // regress an order the admin has already moved to dispatched/delivered.
+  if (orderErr || !order) {
+    return NextResponse.json(
+      { error: orderErr?.message ?? "order update failed" },
+      { status: 500 },
+    );
+  }
+
+  // Auto-advance delivery_status from pending→preparing ONLY on that
+  // initial transition. A reconciliation postback must not regress an
+  // order the admin has already moved to dispatched.
   if (isPaid) {
     await supabase
       .from("orders")
       .update({ delivery_status: "preparing" })
-      .eq("id", event.externalRef)
+      .eq("id", orderId)
       .eq("delivery_status", "pending");
-  }
-
-  if (orderErr || !order) {
-    return NextResponse.json(
-      { error: orderErr?.message ?? "order not found" },
-      { status: 404 },
-    );
   }
 
   // Release stock on terminal failure paths

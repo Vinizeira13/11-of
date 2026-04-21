@@ -10,6 +10,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { CARRIERS, carrierTrackUrl } from "@/lib/carriers";
 import { formatBRL } from "@/lib/money";
 import { isAdmin, updateDeliveryAction } from "@/app/_actions/delivery";
+import { FlashClear } from "@/components/admin/FlashClear";
 import { cn } from "@/lib/utils";
 
 type Order = {
@@ -176,6 +177,7 @@ export default async function AdminOrderPage(props: {
           <p>Atualização salva.</p>
         </div>
       )}
+      {(err || ok) && <FlashClear keys={["ok", "err"]} />}
 
       <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_360px]">
         {/* Update form */}

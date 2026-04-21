@@ -91,6 +91,12 @@ export default async function AdminPedidosPage() {
     }
   }
 
+  // Actionable queue is FIFO — oldest paid-but-not-shipped shows first so
+  // we don't accidentally favor fresh orders over ones about to breach SLA.
+  // Other sections stay DESC (newest first) — that's what ops wants while
+  // browsing history.
+  actionable.reverse();
+
   return (
     <div>
       <header className="mb-8 flex items-end justify-between gap-3">

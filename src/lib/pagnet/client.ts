@@ -74,6 +74,12 @@ export type PagnetCharge = {
   pixCopyPaste: string; // EMV string — caller renders the QR client-side
   expiresAt: string; // ISO date (yyyy-mm-dd)
   secureUrl?: string | null;
+  /** externalRef as PagNet stores it (authoritative — never trust the
+   * webhook body for this, since it's attacker-controlled). */
+  externalRef: string | null;
+  /** Amount in cents as PagNet stores it — cross-check against our order
+   * total to detect transaction-binding attacks. */
+  amountCents: number;
   raw: unknown; // for debugging / extra fields the caller may want
 };
 
@@ -174,6 +180,9 @@ export async function createPixCharge(
     pixCopyPaste: String(pix.qrcode ?? ""),
     expiresAt: String(pix.expirationDate ?? ""),
     secureUrl: (data.secureUrl as string | null) ?? null,
+    externalRef:
+      typeof data.externalRef === "string" ? data.externalRef : null,
+    amountCents: typeof data.amount === "number" ? (data.amount as number) : 0,
     raw: j,
   };
 }
@@ -209,6 +218,9 @@ export async function getCharge(id: string): Promise<PagnetCharge | null> {
     pixCopyPaste: String(pix.qrcode ?? ""),
     expiresAt: String(pix.expirationDate ?? ""),
     secureUrl: (data.secureUrl as string | null) ?? null,
+    externalRef:
+      typeof data.externalRef === "string" ? data.externalRef : null,
+    amountCents: typeof data.amount === "number" ? (data.amount as number) : 0,
     raw: j,
   };
 }
@@ -262,6 +274,8 @@ function createMockCharge(req: PagnetCreateRequest): PagnetCharge {
     pixCopyPaste: emv,
     expiresAt: tomorrow.toISOString().slice(0, 10),
     secureUrl: null,
+    externalRef: req.externalRef,
+    amountCents: req.amountCents,
     raw: { mock: true },
   };
 }

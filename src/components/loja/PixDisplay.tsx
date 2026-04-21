@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Check, Copy, RefreshCw } from "lucide-react";
+import { Check, Copy, QrCode, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -25,10 +25,11 @@ export function PixDisplay({
   initialExpiresAt,
 }: {
   orderId: string;
-  initialPayload: string;
+  /** EMV string from PagNet, or empty/null if not generated yet. */
+  initialPayload: string | null;
   initialExpiresAt: number;
 }) {
-  const [payload, setPayload] = useState(initialPayload);
+  const [payload, setPayload] = useState(initialPayload ?? "");
   const [expiresAt, setExpiresAt] = useState(initialExpiresAt);
   const [now, setNow] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
@@ -37,9 +38,11 @@ export function PixDisplay({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const qrRef = useRef<HTMLDivElement | null>(null);
 
+  const hasPayload = payload.length > 0;
+
   useGSAP(
     () => {
-      if (!rootRef.current) return;
+      if (!rootRef.current || !hasPayload) return;
       const qr = rootRef.current.querySelector<HTMLElement>("[data-pix-qr]");
       const stage = rootRef.current.querySelectorAll<HTMLElement>(
         "[data-pix-stage]",
@@ -106,7 +109,7 @@ export function PixDisplay({
   }, []);
 
   const remaining = Math.max(0, expiresAt - now);
-  const expired = remaining === 0;
+  const expired = hasPayload && remaining === 0;
 
   async function handleCopy() {
     try {
@@ -126,11 +129,41 @@ export function PixDisplay({
       if (res.ok) {
         setPayload(res.pixCopyPaste);
         setExpiresAt(res.pixExpiresAt);
-        toast.success("Novo PIX gerado.");
+        toast.success("PIX gerado.");
       } else {
         toast.error(res.error);
       }
     });
+  }
+
+  // Empty state — no payload yet (charge failed, or row was seeded before
+  // the PagNet call completed). Show a clear "gerar" CTA, nothing else.
+  if (!hasPayload) {
+    return (
+      <div ref={rootRef} className="flex flex-col items-center gap-4 py-6">
+        <div className="flex size-[280px] max-w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/20 text-center p-6">
+          <QrCode
+            className="size-10 text-muted-foreground"
+            aria-hidden
+            strokeWidth={1.5}
+          />
+          <p className="text-sm font-semibold">Nenhum PIX gerado ainda</p>
+          <p className="text-xs text-muted-foreground">
+            Toque em gerar pra receber o QR e o código.
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="lg"
+          disabled={isPending}
+          onClick={handleRegenerate}
+          className="h-12 w-full rounded-full sm:w-auto sm:px-10"
+        >
+          <RefreshCw data-icon="inline-start" />
+          {isPending ? "Gerando…" : "Gerar PIX"}
+        </Button>
+      </div>
+    );
   }
 
   return (
