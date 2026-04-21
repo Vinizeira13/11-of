@@ -2,17 +2,21 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { id: 1, label: "Carrinho", state: "done" },
-  { id: 2, label: "Dados", state: "active" },
-  { id: 3, label: "Pagamento", state: "todo" },
+  { id: 1, label: "Carrinho" },
+  { id: 2, label: "Dados" },
+  { id: 3, label: "Pagamento" },
 ] as const;
 
-export function CheckoutSteps() {
+export function CheckoutSteps({
+  activeStep = 2,
+}: {
+  activeStep?: 1 | 2 | 3;
+}) {
   return (
     <ol className="flex items-center gap-2 text-xs font-medium sm:gap-3">
       {STEPS.map((s, i) => {
-        const done = s.state === "done";
-        const active = s.state === "active";
+        const done = s.id < activeStep;
+        const active = s.id === activeStep;
         return (
           <li key={s.id} className="flex items-center gap-2 sm:gap-3">
             <div className="flex items-center gap-2">

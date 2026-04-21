@@ -1,7 +1,5 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { PixDisplay } from "@/components/loja/PixDisplay";
@@ -23,11 +21,6 @@ import {
 } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
-
-export const metadata: Metadata = {
-  title: "Pedido",
-  robots: { index: false, follow: false },
-};
 
 type OrderAddress = {
   cep: string;
@@ -171,20 +164,40 @@ export default async function OrderPage(props: PageProps<"/pedido/[id]">) {
   });
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-24 pt-8 md:pt-12">
+    <div className="mx-auto max-w-[1200px] px-6 pb-24 pt-8">
       <header className="mb-8">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Pedido {order.short_code}
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-turf">
+            {isPaid ? "Pagamento confirmado" : "Passo 3 de 3"}
+          </p>
+          <span className="text-muted-foreground/60" aria-hidden>
+            ·
+          </span>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {order.short_code}
+          </p>
+        </div>
+        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight md:text-4xl">
           {isPaid ? "Pagamento confirmado!" : "Agora é só pagar o PIX."}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Assim que confirmarmos o pagamento, você recebe atualizações em{" "}
-          <span className="font-medium text-foreground">
-            {order.customer_email}
-          </span>
-          .
+          {isPaid ? (
+            <>
+              Recebemos teu PIX. As atualizações vão pra{" "}
+              <span className="font-medium text-foreground">
+                {order.customer_email}
+              </span>
+              .
+            </>
+          ) : (
+            <>
+              Assim que confirmarmos o pagamento, você recebe atualizações em{" "}
+              <span className="font-medium text-foreground">
+                {order.customer_email}
+              </span>
+              .
+            </>
+          )}
         </p>
       </header>
 
