@@ -103,12 +103,16 @@ function buildBody(req: PagnetCreateRequest): Record<string, unknown> {
   return {
     amount: req.amountCents,
     paymentMethod: "pix",
+    installments: 1, // Required by PagNet acquirer even for PIX (empirical)
     pix: { expiresInDays: PIX_TTL_DAYS },
     items: req.items.map((i) => ({
       title: i.title,
       unitPrice: i.unitPriceCents,
       quantity: i.quantity,
-      tangible: i.tangible ?? true,
+      // PagNet acquirer rejects tangible:true on this account tier (returns
+      // "Erro na adquirente"). Logistics + delivery tracking happens off-
+      // platform. Default to false so charges go through.
+      tangible: i.tangible ?? false,
       ...(i.externalRef ? { externalRef: i.externalRef } : {}),
     })),
     customer: {

@@ -55,7 +55,7 @@ export async function regeneratePixAction(orderId: string) {
         title: `${i.product_name_snapshot} (${i.variant_size_snapshot})`,
         unitPriceCents: i.unit_price_cents,
         quantity: i.qty,
-        tangible: true,
+        tangible: false,
       })),
       customer: {
         name: order.customer_name,

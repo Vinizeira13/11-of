@@ -193,7 +193,7 @@ export async function createOrderAction(
         title: `${line.product.name} (${line.variant.size})`,
         unitPriceCents: line.product.priceCents,
         quantity: line.qty,
-        tangible: true,
+        tangible: false,
         externalRef: line.product.slug,
       })),
       customer: {
