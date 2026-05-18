@@ -170,7 +170,12 @@ export async function createOrderAction(
       variant_id: line.variantId,
       qty: line.qty,
       unit_price_cents: line.product.priceCents,
-      product_name_snapshot: line.product.name,
+      // Stamp the chosen player name onto the product snapshot so
+      // fulfillment + admin + the customer's order page all show it
+      // without a schema migration. "Camisa Brasil Home 2026 — Nome: Neymar 10"
+      product_name_snapshot: line.personalization
+        ? `${line.product.name} — Nome: ${line.personalization}`
+        : line.product.name,
       variant_size_snapshot: line.variant.size,
       image_snapshot: line.product.images[0] ?? null,
     })),
@@ -190,7 +195,9 @@ export async function createOrderAction(
       postbackUrl: `${SITE_URL}/api/webhooks/pagnet`,
       metadata: JSON.stringify({ orderId: order.id, shortCode }),
       items: resolved.map((line) => ({
-        title: `${line.product.name} (${line.variant.size})`,
+        title: line.personalization
+          ? `${line.product.name} (${line.variant.size}) — ${line.personalization}`
+          : `${line.product.name} (${line.variant.size})`,
         unitPriceCents: line.product.priceCents,
         quantity: line.qty,
         tangible: false,

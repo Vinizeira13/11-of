@@ -18,6 +18,7 @@ import {
   updateCartQtyAction,
 } from "@/app/_actions/cart";
 import type { CartLine } from "@/lib/cart";
+import { cartLineKey } from "@/lib/personalization";
 import type { Product } from "@/lib/catalog";
 import { bumpCart, flyToCart } from "@/lib/fly-to-cart";
 
@@ -32,30 +33,50 @@ type CartContextValue = {
   open: () => void;
   close: () => void;
   toggle: () => void;
-  add: (variantId: string, qty?: number) => Promise<boolean>;
+  add: (
+    variantId: string,
+    qty?: number,
+    personalization?: string,
+  ) => Promise<boolean>;
   addWithFlight: (
     variantId: string,
     qty: number,
     flight: { fromEl: HTMLElement; imageSrc: string },
+    personalization?: string,
   ) => Promise<boolean>;
-  updateQty: (variantId: string, qty: number) => Promise<void>;
-  remove: (variantId: string) => Promise<void>;
+  updateQty: (
+    variantId: string,
+    personalization: string | null,
+    qty: number,
+  ) => Promise<void>;
+  remove: (
+    variantId: string,
+    personalization: string | null,
+  ) => Promise<void>;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 
 type OptimisticAction =
   | { type: "set"; lines: CartLine[] }
-  | { type: "add"; variantId: string; qty: number }
-  | { type: "updateQty"; variantId: string; qty: number }
-  | { type: "remove"; variantId: string };
+  | { type: "add"; variantId: string; qty: number; personalization?: string }
+  | { type: "updateQty"; key: string; qty: number }
+  | { type: "remove"; key: string };
 
 function reducer(state: CartState, action: OptimisticAction): CartState {
   switch (action.type) {
     case "set":
       return { lines: action.lines };
     case "add": {
-      const idx = state.lines.findIndex((l) => l.variantId === action.variantId);
+      const incoming: CartLine = action.personalization
+        ? {
+            variantId: action.variantId,
+            qty: action.qty,
+            personalization: action.personalization,
+          }
+        : { variantId: action.variantId, qty: action.qty };
+      const key = cartLineKey(incoming);
+      const idx = state.lines.findIndex((l) => cartLineKey(l) === key);
       if (idx >= 0) {
         return {
           lines: state.lines.map((l, i) =>
@@ -63,21 +84,23 @@ function reducer(state: CartState, action: OptimisticAction): CartState {
           ),
         };
       }
-      return {
-        lines: [...state.lines, { variantId: action.variantId, qty: action.qty }],
-      };
+      return { lines: [...state.lines, incoming] };
     }
     case "updateQty":
       return {
         lines:
           action.qty === 0
-            ? state.lines.filter((l) => l.variantId !== action.variantId)
+            ? state.lines.filter((l) => cartLineKey(l) !== action.key)
             : state.lines.map((l) =>
-                l.variantId === action.variantId ? { ...l, qty: action.qty } : l,
+                cartLineKey(l) === action.key
+                  ? { ...l, qty: action.qty }
+                  : l,
               ),
       };
     case "remove":
-      return { lines: state.lines.filter((l) => l.variantId !== action.variantId) };
+      return {
+        lines: state.lines.filter((l) => cartLineKey(l) !== action.key),
+      };
   }
 }
 
@@ -107,13 +130,14 @@ export function CartProvider({
       variantId: string,
       qty: number,
       openOnSuccess: boolean,
+      personalization?: string,
     ): Promise<boolean> => {
       let success = true;
       await new Promise<void>((resolve) => {
         startTransition(async () => {
-          dispatch({ type: "add", variantId, qty });
+          dispatch({ type: "add", variantId, qty, personalization });
           try {
-            const res = await addToCartAction(variantId, qty);
+            const res = await addToCartAction(variantId, qty, personalization);
             if (res.ok) {
               setBaseLines(res.lines);
             } else {
@@ -135,7 +159,8 @@ export function CartProvider({
   );
 
   const add = useCallback(
-    (variantId: string, qty: number = 1) => runAdd(variantId, qty, true),
+    (variantId: string, qty: number = 1, personalization?: string) =>
+      runAdd(variantId, qty, true, personalization),
     [runAdd],
   );
 
@@ -144,9 +169,10 @@ export function CartProvider({
       variantId: string,
       qty: number,
       flight: { fromEl: HTMLElement; imageSrc: string },
+      personalization?: string,
     ) => {
       const toEl = cartButtonRef.current;
-      if (!toEl) return runAdd(variantId, qty, true);
+      if (!toEl) return runAdd(variantId, qty, true, personalization);
 
       flyToCart({
         fromEl: flight.fromEl,
@@ -157,18 +183,30 @@ export function CartProvider({
           setIsOpen(true);
         },
       });
-      return runAdd(variantId, qty, false);
+      return runAdd(variantId, qty, false, personalization);
     },
     [runAdd],
   );
 
   const updateQty = useCallback(
-    async (variantId: string, qty: number) => {
+    async (
+      variantId: string,
+      personalization: string | null,
+      qty: number,
+    ) => {
+      const key = cartLineKey({
+        variantId,
+        personalization: personalization ?? undefined,
+      });
       await new Promise<void>((resolve) => {
         startTransition(async () => {
-          dispatch({ type: "updateQty", variantId, qty });
+          dispatch({ type: "updateQty", key, qty });
           try {
-            const res = await updateCartQtyAction(variantId, qty);
+            const res = await updateCartQtyAction(
+              variantId,
+              personalization,
+              qty,
+            );
             if (res.ok) setBaseLines(res.lines);
             else toast.error(res.error);
           } catch {
@@ -183,12 +221,16 @@ export function CartProvider({
   );
 
   const remove = useCallback(
-    async (variantId: string) => {
+    async (variantId: string, personalization: string | null) => {
+      const key = cartLineKey({
+        variantId,
+        personalization: personalization ?? undefined,
+      });
       await new Promise<void>((resolve) => {
         startTransition(async () => {
-          dispatch({ type: "remove", variantId });
+          dispatch({ type: "remove", key });
           try {
-            const res = await removeFromCartAction(variantId);
+            const res = await removeFromCartAction(variantId, personalization);
             if (res.ok) setBaseLines(res.lines);
           } catch {
             toast.error("Não deu pra remover agora. Tenta de novo.");

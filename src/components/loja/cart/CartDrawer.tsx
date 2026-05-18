@@ -33,13 +33,14 @@ import { FreeShippingBar } from "./FreeShippingBar";
 type ResolvedLine = {
   variantId: string;
   qty: number;
+  personalization?: string;
   product: Product;
   variant: Variant;
   lineTotalCents: number;
 };
 
 function resolveLines(
-  lines: { variantId: string; qty: number }[],
+  lines: Array<{ variantId: string; qty: number; personalization?: string }>,
   products: Product[],
 ): ResolvedLine[] {
   const out: ResolvedLine[] = [];
@@ -50,6 +51,7 @@ function resolveLines(
         out.push({
           variantId: line.variantId,
           qty: line.qty,
+          personalization: line.personalization,
           product,
           variant,
           lineTotalCents: product.priceCents * line.qty,
@@ -118,8 +120,10 @@ export function CartDrawer() {
                   const team = teamBySlug(line.product.slug);
                   const { product: shots, editorial } = splitImages(line.product.images);
                   const image = shots[0] ?? editorial[0] ?? line.product.images[0];
+                  const lineKey = `${line.variantId}|${line.personalization ?? ""}`;
+                  const pers = line.personalization ?? null;
                   return (
-                    <li key={line.variantId} className="flex gap-3">
+                    <li key={lineKey} className="flex gap-3">
                       <Link
                         href={`/produtos/${line.product.slug}`}
                         onClick={close}
@@ -156,6 +160,11 @@ export function CartDrawer() {
                             <p className="text-xs text-muted-foreground">
                               Tamanho {line.variant.size}
                             </p>
+                            {line.personalization && (
+                              <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-turf/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-turf">
+                                Nome · {line.personalization}
+                              </p>
+                            )}
                           </div>
                           <p className="text-sm font-semibold tabular-nums">
                             {formatBRL(line.lineTotalCents)}
@@ -168,7 +177,7 @@ export function CartDrawer() {
                               variant="ghost"
                               size="icon"
                               className="size-8 rounded-full"
-                              onClick={() => updateQty(line.variantId, line.qty - 1)}
+                              onClick={() => updateQty(line.variantId, pers, line.qty - 1)}
                               aria-label="Diminuir quantidade"
                               disabled={line.qty <= 1}
                             >
@@ -182,7 +191,7 @@ export function CartDrawer() {
                               variant="ghost"
                               size="icon"
                               className="size-8 rounded-full"
-                              onClick={() => updateQty(line.variantId, line.qty + 1)}
+                              onClick={() => updateQty(line.variantId, pers, line.qty + 1)}
                               aria-label="Aumentar quantidade"
                               disabled={line.qty >= line.variant.stockQty}
                             >
@@ -194,7 +203,7 @@ export function CartDrawer() {
                             variant="ghost"
                             size="sm"
                             className="h-8 text-muted-foreground hover:text-foreground"
-                            onClick={() => remove(line.variantId)}
+                            onClick={() => remove(line.variantId, pers)}
                           >
                             <Trash2 data-icon="inline-start" />
                             Remover

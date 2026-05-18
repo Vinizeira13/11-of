@@ -1,6 +1,12 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { sanitizePersonalization } from "@/lib/personalization";
+
+// Re-export the pure key helper so callers can keep importing it from
+// "@/lib/cart" if they're server-side; client components must import it
+// directly from "@/lib/personalization".
+export { cartLineKey } from "@/lib/personalization";
 
 export const CART_COOKIE = "cart";
 export const CART_MAX_ITEMS = 20;
@@ -13,9 +19,12 @@ export type CartLine = {
   variantId: string;
   /** quantity (short key `q` on the wire) */
   qty: number;
+  /** optional name+number printed on the jersey back (`p` on the wire) */
+  personalization?: string;
 };
 
-type WirePayload = { items: Array<{ v: string; q: number }> };
+type WireItem = { v: string; q: number; p?: string };
+type WirePayload = { items: WireItem[] };
 
 function secret(): string {
   const env = process.env.CART_SECRET;
@@ -47,7 +56,11 @@ function verify(payload: string, signature: string): boolean {
 
 function encode(lines: CartLine[]): string {
   const wire: WirePayload = {
-    items: lines.map((l) => ({ v: l.variantId, q: l.qty })),
+    items: lines.map((l) => {
+      const item: WireItem = { v: l.variantId, q: l.qty };
+      if (l.personalization) item.p = l.personalization;
+      return item;
+    }),
   };
   const body = Buffer.from(JSON.stringify(wire)).toString("base64url");
   return `${body}.${sign(body)}`;
@@ -66,13 +79,18 @@ function decode(raw: string | undefined): CartLine[] {
     if (!parsed || !Array.isArray(parsed.items)) return [];
     return parsed.items
       .filter(
-        (i): i is { v: string; q: number } =>
+        (i): i is WireItem =>
           typeof i?.v === "string" &&
           typeof i?.q === "number" &&
           i.q > 0 &&
           i.q <= CART_MAX_QTY_PER_LINE,
       )
-      .map((i) => ({ variantId: i.v, qty: i.q }))
+      .map<CartLine>((i) => {
+        const line: CartLine = { variantId: i.v, qty: i.q };
+        const p = sanitizePersonalization(i.p);
+        if (p) line.personalization = p;
+        return line;
+      })
       .slice(0, CART_MAX_ITEMS);
   } catch {
     return [];

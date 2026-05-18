@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 type Line = {
   variantId: string;
   qty: number;
+  personalization: string | null;
   productName: string;
   variantSize: string;
   image: string | null;
@@ -44,20 +45,30 @@ export function CheckoutSummary({
   const router = useRouter();
   const itemsCount = lines.reduce((s, l) => s + l.qty, 0);
 
-  function changeQty(variantId: string, nextQty: number) {
-    setPendingId(variantId);
+  function changeQty(
+    variantId: string,
+    personalization: string | null,
+    nextQty: number,
+  ) {
+    const key = `${variantId}|${personalization ?? ""}`;
+    setPendingId(key);
     startTransition(async () => {
-      const res = await updateCartQtyAction(variantId, nextQty);
+      const res = await updateCartQtyAction(
+        variantId,
+        personalization,
+        nextQty,
+      );
       setPendingId(null);
       if (res.ok) router.refresh();
       else toast.error(res.error ?? "Não foi possível atualizar.");
     });
   }
 
-  function removeLine(variantId: string) {
-    setPendingId(variantId);
+  function removeLine(variantId: string, personalization: string | null) {
+    const key = `${variantId}|${personalization ?? ""}`;
+    setPendingId(key);
     startTransition(async () => {
-      const res = await removeFromCartAction(variantId);
+      const res = await removeFromCartAction(variantId, personalization);
       setPendingId(null);
       if (res.ok) {
         toast.success("Item removido");
@@ -115,10 +126,11 @@ export function CheckoutSummary({
 
           <ul className="mt-5 flex flex-col gap-4">
             {lines.map((line) => {
-              const isPending = pendingId === line.variantId;
+              const lineKey = `${line.variantId}|${line.personalization ?? ""}`;
+              const isPending = pendingId === lineKey;
               return (
                 <li
-                  key={line.variantId}
+                  key={lineKey}
                   className={cn(
                     "flex gap-3 transition-opacity",
                     isPending && "opacity-60",
@@ -141,7 +153,7 @@ export function CheckoutSummary({
                       </p>
                       <button
                         type="button"
-                        onClick={() => removeLine(line.variantId)}
+                        onClick={() => removeLine(line.variantId, line.personalization)}
                         disabled={isPending}
                         aria-label={`Remover ${line.productName}`}
                         className="-mr-1 shrink-0 rounded-full p-1 text-muted-foreground transition hover:bg-card hover:text-foreground"
@@ -151,13 +163,22 @@ export function CheckoutSummary({
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Tamanho {line.variantSize}
+                      {line.personalization && (
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-turf/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-turf">
+                          {line.personalization}
+                        </span>
+                      )}
                     </p>
                     <div className="flex items-center justify-between gap-2">
                       <div className="inline-flex items-center rounded-full border border-border/70 bg-card/60">
                         <button
                           type="button"
                           onClick={() =>
-                            changeQty(line.variantId, Math.max(0, line.qty - 1))
+                            changeQty(
+                              line.variantId,
+                              line.personalization,
+                              Math.max(0, line.qty - 1),
+                            )
                           }
                           disabled={isPending}
                           aria-label="Reduzir quantidade"
@@ -170,7 +191,13 @@ export function CheckoutSummary({
                         </span>
                         <button
                           type="button"
-                          onClick={() => changeQty(line.variantId, line.qty + 1)}
+                          onClick={() =>
+                            changeQty(
+                              line.variantId,
+                              line.personalization,
+                              line.qty + 1,
+                            )
+                          }
                           disabled={isPending}
                           aria-label="Aumentar quantidade"
                           className="inline-flex size-7 items-center justify-center rounded-full transition hover:bg-foreground/10 disabled:opacity-50"

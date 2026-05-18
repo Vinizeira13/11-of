@@ -24,6 +24,7 @@ import { NotifyMe } from "@/components/loja/NotifyMe";
 import { PdpUrgency } from "@/components/loja/PdpUrgency";
 import { splitImages } from "@/lib/images";
 import { getProductBySlug, getPublishedProducts } from "@/lib/catalog";
+import { playersForSlug } from "@/lib/personalization";
 import {
   teamBySlug,
   homeSlug as teamHomeSlug,
@@ -203,7 +204,7 @@ export default async function ProductPage(
                     {formatBRL(product.priceCents)}
                   </span>
                   <span className="text-xs font-medium text-muted-foreground">
-                    à vista em cartão ou boleto
+                    no PIX · QR na hora
                   </span>
                 </div>
 
@@ -245,6 +246,7 @@ export default async function ProductPage(
                         <SizeGuide />
                       </div>
                     }
+                    playerOptions={playersForSlug(product.slug) ?? undefined}
                   />
                 )}
               </div>

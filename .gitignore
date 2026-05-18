@@ -43,3 +43,5 @@ next-env.d.ts
 
 # local scratch (browser screenshots, etc)
 .tmp/
+.playwright-mcp/
+/pdp-*.png

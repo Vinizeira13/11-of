@@ -6,22 +6,33 @@ import { toast } from "sonner";
 import type { Product, Variant } from "@/lib/catalog";
 import { Button } from "@/components/ui/button";
 import { SizeSelector } from "@/components/loja/SizeSelector";
+import {
+  PlayerNamePicker,
+  type PlayerNamePickerValue,
+} from "@/components/loja/PlayerNamePicker";
 import { useCart } from "@/components/loja/cart/CartContext";
 import { formatBRL } from "@/lib/money";
+import {
+  formatPersonalization,
+  type PlayerOption,
+} from "@/lib/personalization";
 import { cn } from "@/lib/utils";
 
 export function AddToCartButton({
   product,
   className,
   sizeHeaderExtra,
+  playerOptions,
 }: {
   product: Product;
   className?: string;
   sizeHeaderExtra?: ReactNode;
+  playerOptions?: readonly PlayerOption[];
 }) {
   const firstAvailable =
     product.variants.find((v) => v.stockQty > 0) ?? null;
   const [variant, setVariant] = useState<Variant | null>(firstAvailable);
+  const [picker, setPicker] = useState<PlayerNamePickerValue>({ player: null });
   const [isPending, startTransition] = useTransition();
   const { add, addWithFlight } = useCart();
 
@@ -34,15 +45,25 @@ export function AddToCartButton({
       '[data-fly-source="product-gallery"]',
     );
     const imageSrc = product.images[0];
+    const personalization = picker.player
+      ? formatPersonalization(picker.player)
+      : undefined;
 
     startTransition(async () => {
       const ok =
         fromEl && imageSrc
-          ? await addWithFlight(variant.id, 1, { fromEl, imageSrc })
-          : await add(variant.id, 1);
+          ? await addWithFlight(
+              variant.id,
+              1,
+              { fromEl, imageSrc },
+              personalization,
+            )
+          : await add(variant.id, 1, personalization);
       if (ok) {
         toast.success(`${product.name} (${variant.size}) adicionado`, {
-          description: formatBRL(product.priceCents),
+          description: personalization
+            ? `Nome: ${personalization} · ${formatBRL(product.priceCents)}`
+            : formatBRL(product.priceCents),
         });
       }
     });
@@ -55,6 +76,14 @@ export function AddToCartButton({
         onChange={setVariant}
         headerExtra={sizeHeaderExtra}
       />
+
+      {playerOptions && playerOptions.length > 0 && (
+        <PlayerNamePicker
+          options={playerOptions}
+          value={picker}
+          onChange={setPicker}
+        />
+      )}
 
       <Button
         type="button"

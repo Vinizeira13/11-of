@@ -19,7 +19,7 @@ const ITEMS = [
   },
   {
     q: "Posso personalizar com nome e número?",
-    a: "Em breve. A personalização estará disponível a partir de maio/2026. Por ora trabalhamos apenas com a versão oficial sem patch de nome.",
+    a: "Sim — nas camisas do Brasil (Home e Away) você escolhe entre Neymar 10, Vini Jr 7, Endrick 9, Rayan 11 ou sem nome, direto na página do produto. A personalização é gratuita e aplicada por termotransferência oficial, adicionando 1 dia útil ao despacho.",
   },
   {
     q: "Como funciona o desconto do PIX?",
@@ -27,7 +27,7 @@ const ITEMS = [
   },
   {
     q: "Quais são as formas de pagamento?",
-    a: "No momento trabalhamos exclusivamente com PIX — que dá 15% OFF direto. Cartão de crédito e boleto serão adicionados em breve.",
+    a: "Por enquanto, só PIX — e por isso o desconto de 15% direto. O QR aparece na hora e o pedido aprova em segundos. Cartão de crédito e boleto entram nos próximos meses.",
   },
 ];
 

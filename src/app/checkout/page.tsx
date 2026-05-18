@@ -49,6 +49,7 @@ export default async function CheckoutPage() {
   const summaryLines = resolved.map((l) => ({
     variantId: l.variantId,
     qty: l.qty,
+    personalization: l.personalization ?? null,
     productName: l.product.name,
     variantSize: l.variant.size,
     image: l.product.images[0] ?? null,

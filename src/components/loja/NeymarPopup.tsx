@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, X } from "lucide-react";
 import {
@@ -26,8 +27,13 @@ const TIMER_FALLBACK_MS = 6000;
 
 export function NeymarPopup() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  // Skip on the very PDP the popup links to — pushing the customer to the
+  // page they're already viewing is just noise.
+  const isOnTargetPage = pathname === HREF;
 
   useEffect(() => {
+    if (isOnTargetPage) return;
     try {
       if (window.sessionStorage.getItem(STORAGE_KEY) === "1") return;
     } catch {}
@@ -55,7 +61,7 @@ export function NeymarPopup() {
     window.addEventListener("scroll", onScroll, { passive: true });
 
     return cleanup;
-  }, []);
+  }, [isOnTargetPage]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);

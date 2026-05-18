@@ -98,6 +98,7 @@ export const getProductBySlug = cache(
 export type ResolvedLine = {
   variantId: string;
   qty: number;
+  personalization?: string;
   product: Product;
   variant: Variant;
   lineTotalCents: number;
@@ -129,7 +130,7 @@ export async function findVariant(
 }
 
 export async function resolveCartLines(
-  lines: Array<{ variantId: string; qty: number }>,
+  lines: Array<{ variantId: string; qty: number; personalization?: string }>,
 ): Promise<{
   resolved: ResolvedLine[];
   invalidIds: string[];
@@ -155,6 +156,7 @@ export async function resolveCartLines(
     resolved.push({
       variantId: line.variantId,
       qty,
+      personalization: line.personalization,
       product: match.product,
       variant: match.variant,
       lineTotalCents,
