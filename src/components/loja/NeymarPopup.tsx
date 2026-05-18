@@ -16,11 +16,9 @@ import {
 const STORAGE_KEY = "11of:neymar:seen";
 const HREF = "/produtos/camisa-brasil-home-2026";
 
-// Product-only shot of the Brasil Home jersey — no player face, so the
-// headline ("Neymar convocado") doesn't visually contradict the image
-// (the editorial #20 Vini Jr photo would).
-const IMAGE =
-  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/bra/002_nike-football-2026-federation-kits-brasil-home-1.webp";
+// Editorial shot of Neymar holding up the Brasil home jersey. Matches the
+// "Neymar foi convocado" headline exactly — no Vini Jr / #20 dissonance.
+const IMAGE = "/neymar-brasil-2026.webp";
 
 const SCROLL_TRIGGER_PX = 240;
 const TIMER_FALLBACK_MS = 6000;
