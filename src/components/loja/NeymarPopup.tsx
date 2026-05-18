@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, X } from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -14,59 +14,90 @@ import {
 
 const STORAGE_KEY = "11of:neymar:seen";
 const HREF = "/produtos/camisa-brasil-home-2026";
+
+// Product-only shot of the Brasil Home jersey — no player face, so the
+// headline ("Neymar convocado") doesn't visually contradict the image
+// (the editorial #20 Vini Jr photo would).
 const IMAGE =
-  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/bra/005_nike-football-2026-federation-kits-brasil-vini-jr.webp";
+  "https://csojptgqkpaghnmeswvn.supabase.co/storage/v1/object/public/jersey-assets/nike/bra/002_nike-football-2026-federation-kits-brasil-home-1.webp";
+
+const SCROLL_TRIGGER_PX = 240;
+const TIMER_FALLBACK_MS = 6000;
 
 export function NeymarPopup() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    let timer: number | undefined;
     try {
       if (window.sessionStorage.getItem(STORAGE_KEY) === "1") return;
     } catch {}
 
-    timer = window.setTimeout(() => {
-      if (cancelled) return;
+    let fired = false;
+    let timer: number | undefined;
+
+    function trigger() {
+      if (fired) return;
+      fired = true;
+      cleanup();
       setOpen(true);
+    }
+
+    function onScroll() {
+      if (window.scrollY > SCROLL_TRIGGER_PX) trigger();
+    }
+
+    function cleanup() {
+      if (timer !== undefined) window.clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+    }
+
+    timer = window.setTimeout(trigger, TIMER_FALLBACK_MS);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return cleanup;
+  }, []);
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
       try {
         window.sessionStorage.setItem(STORAGE_KEY, "1");
       } catch {}
-    }, 1200);
-
-    return () => {
-      cancelled = true;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, []);
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        showCloseButton
+        showCloseButton={false}
         className="overflow-hidden p-0 sm:max-w-md"
       >
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-muted">
           <Image
             src={IMAGE}
-            alt="Camisa Brasil Home 2026"
+            alt="Camisa Brasil Home 2026 — coleção oficial Nike"
             fill
             sizes="(min-width:640px) 28rem, 100vw"
             className="object-cover"
-            priority
           />
           <div
             aria-hidden
-            className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent"
+            className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/15"
           />
+
+          <DialogClose
+            aria-label="Fechar"
+            className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/75"
+          >
+            <X className="size-4" />
+          </DialogClose>
 
           <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-destructive px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white">
             <span className="relative flex size-1.5" aria-hidden>
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 motion-reduce:hidden" />
               <span className="relative inline-flex size-1.5 rounded-full bg-white" />
             </span>
-            Urgente · ao vivo
+            Convocação confirmada
           </div>
 
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-5 text-white">
@@ -77,9 +108,8 @@ export function NeymarPopup() {
               Neymar foi convocado.
             </DialogTitle>
             <DialogDescription className="text-sm leading-relaxed text-white/80">
-              A camisa <span className="font-semibold text-white">#10</span> da
-              Seleção tá saindo rápido. Tiragem controlada — quando esgotar,
-              acabou.
+              A camisa da Seleção pra Copa 2026 chegou. Coleção oficial Nike —
+              tiragem controlada, quando esgotar acabou.
             </DialogDescription>
 
             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -88,7 +118,7 @@ export function NeymarPopup() {
                   href={HREF}
                   className="group inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-neutral-900 transition hover:bg-white/90"
                 >
-                  Garantir a minha
+                  Ver a camisa
                   <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </Link>
               </DialogClose>

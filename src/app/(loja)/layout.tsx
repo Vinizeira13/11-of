@@ -11,6 +11,7 @@ import { ScrollToTop } from "@/components/loja/ScrollToTop";
 import { readCart } from "@/lib/cart";
 import { getPublishedProducts } from "@/lib/catalog";
 import { WHATSAPP } from "@/lib/brand";
+import { isBreakingActive } from "@/lib/breaking";
 
 export default async function StorefrontLayout({
   children,
@@ -22,9 +23,11 @@ export default async function StorefrontLayout({
     getPublishedProducts(),
   ]);
 
+  const breakingOn = isBreakingActive();
+
   return (
     <CartProvider initialLines={initialLines} products={products}>
-      <BreakingBar />
+      {breakingOn && <BreakingBar />}
       <AnnouncementBar />
       <Header />
       <main className="flex-1">{children}</main>
@@ -33,7 +36,7 @@ export default async function StorefrontLayout({
       <TeamPicker />
       <WhatsAppFloat phone={WHATSAPP} />
       <ScrollToTop />
-      <NeymarPopup />
+      {breakingOn && <NeymarPopup />}
     </CartProvider>
   );
 }
