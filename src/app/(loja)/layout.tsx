@@ -1,4 +1,6 @@
 import { AnnouncementBar } from "@/components/loja/AnnouncementBar";
+import { BreakingBar } from "@/components/loja/BreakingBar";
+import { NeymarPopup } from "@/components/loja/NeymarPopup";
 import { Header } from "@/components/loja/Header";
 import { Footer } from "@/components/loja/Footer";
 import { CartProvider } from "@/components/loja/cart/CartContext";
@@ -22,6 +24,7 @@ export default async function StorefrontLayout({
 
   return (
     <CartProvider initialLines={initialLines} products={products}>
+      <BreakingBar />
       <AnnouncementBar />
       <Header />
       <main className="flex-1">{children}</main>
@@ -30,6 +33,7 @@ export default async function StorefrontLayout({
       <TeamPicker />
       <WhatsAppFloat phone={WHATSAPP} />
       <ScrollToTop />
+      <NeymarPopup />
     </CartProvider>
   );
 }
