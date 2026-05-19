@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ZoomIn, Zap } from "lucide-react";
 import { splitImages, BLUR_DATA_URL } from "@/lib/images";
+import { PIX_DISCOUNT_PCT } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 const SWIPE_THRESHOLD_PX = 40;
@@ -102,7 +103,11 @@ export function ProductGallerySplit({
         <div className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
           {active + 1}/{list.length}
         </div>
-        <div className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur opacity-0 transition group-hover:opacity-100 motion-reduce:transition-none">
+        <div className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-turf px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-turf-foreground shadow-md ring-1 ring-black/10">
+          <Zap className="size-3" aria-hidden />
+          PIX {PIX_DISCOUNT_PCT}% OFF
+        </div>
+        <div className="pointer-events-none absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur opacity-0 transition group-hover:opacity-100 motion-reduce:transition-none">
           <ZoomIn className="size-3" />
           Ampliar
         </div>

@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Zap, Truck, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  ChevronRight,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
+  Truck,
+  Zap,
+} from "lucide-react";
 import { AddToCartButton } from "@/components/loja/AddToCartButton";
 import { DeliveryEstimate } from "@/components/loja/DeliveryEstimate";
 import { ProductGallerySplit } from "@/components/loja/ProductGallerySplit";
@@ -246,7 +253,7 @@ export default async function ProductPage(
                     Pagando no PIX: {formatBRL(Math.round(product.priceCents * (1 - PIX_DISCOUNT_PCT / 100)))}
                   </p>
                   <p className="mt-1 text-[11px] text-turf/80">
-                    {PIX_DISCOUNT_PCT}% OFF aplicado automaticamente no checkout.
+                    {PIX_DISCOUNT_PCT}% OFF aplicado no checkout · QR no app do seu banco, aprovado em segundos.
                   </p>
                 </div>
 
@@ -283,6 +290,19 @@ export default async function ProductPage(
                 )}
               </div>
 
+              {!isSoldOut && (
+                <p className="-mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Lock className="size-3 text-turf" aria-hidden />
+                    Compra protegida
+                  </span>
+                  <span aria-hidden className="text-foreground/30">·</span>
+                  <span>Dados criptografados (LGPD)</span>
+                  <span aria-hidden className="text-foreground/30">·</span>
+                  <span>Oficial Nike, nota fiscal inclusa</span>
+                </p>
+              )}
+
               <div className="space-y-3">
                 <DeliveryEstimate />
                 <SocialProof />
@@ -295,10 +315,12 @@ export default async function ProductPage(
                 <Feature icon={Zap} label="Frete grátis R$ 299+" />
               </ul>
 
-              <ShareButtons
-                url={`/produtos/${product.slug}`}
-                title={`${product.name} · 11 Of`}
-              />
+              <div className="pt-2">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Detalhes da peça
+                </p>
+                <ProductSpecs />
+              </div>
 
               {team && (
                 <div className="rounded-2xl border border-border/80 bg-card/40 p-5">
@@ -321,12 +343,10 @@ export default async function ProductPage(
                 </div>
               )}
 
-              <div className="pt-2">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Detalhes da peça
-                </p>
-                <ProductSpecs />
-              </div>
+              <ShareButtons
+                url={`/produtos/${product.slug}`}
+                title={`${product.name} · 11 Of`}
+              />
             </div>
           </div>
         </div>
