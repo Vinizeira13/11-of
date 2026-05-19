@@ -199,13 +199,45 @@ export default async function ProductPage(
                   </h1>
                 </div>
 
-                <div className="flex items-baseline gap-3">
-                  <span className="font-display text-3xl font-semibold tabular-nums">
-                    {formatBRL(product.priceCents)}
-                  </span>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    no PIX · QR na hora
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="font-display text-4xl font-semibold tabular-nums">
+                      {formatBRL(product.priceCents)}
+                    </span>
+                    {product.compareAtCents &&
+                      product.compareAtCents > product.priceCents && (
+                        <>
+                          <span className="text-sm text-muted-foreground line-through tabular-nums">
+                            {formatBRL(product.compareAtCents)}
+                          </span>
+                          <span className="inline-flex items-center rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-destructive">
+                            -
+                            {Math.round(
+                              ((product.compareAtCents - product.priceCents) /
+                                product.compareAtCents) *
+                                100,
+                            )}
+                            %
+                          </span>
+                        </>
+                      )}
+                  </div>
+                  {product.compareAtCents &&
+                  product.compareAtCents > product.priceCents ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Você economiza{" "}
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {formatBRL(
+                          product.compareAtCents - product.priceCents,
+                        )}
+                      </span>{" "}
+                      · no PIX: QR gerado na hora
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      no PIX · QR gerado na hora
+                    </p>
+                  )}
                 </div>
 
                 <div className="rounded-xl border border-turf/40 bg-turf/10 px-4 py-3">
@@ -256,11 +288,11 @@ export default async function ProductPage(
                 <SocialProof />
               </div>
 
-              <ul className="grid grid-cols-2 gap-3 pt-2">
-                <Feature icon={Truck} label="Despacho em 24h úteis" />
-                <Feature icon={RefreshCw} label="Troca grátis em 7 dias" />
-                <Feature icon={ShieldCheck} label="100% autêntica Nike" />
-                <Feature icon={Zap} label="Frete grátis acima R$ 299" />
+              <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[11px] text-muted-foreground">
+                <Feature icon={Truck} label="Despacho em 24h" />
+                <Feature icon={RefreshCw} label="Troca grátis 7 dias" />
+                <Feature icon={ShieldCheck} label="Oficial Nike" />
+                <Feature icon={Zap} label="Frete grátis R$ 299+" />
               </ul>
 
               <ShareButtons
@@ -333,9 +365,9 @@ function Feature({
   label: string;
 }) {
   return (
-    <li className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-3 py-2 text-xs">
-      <Icon className="size-3.5 text-turf" />
-      <span className="text-foreground/85">{label}</span>
+    <li className="inline-flex items-center gap-1.5">
+      <Icon className="size-3.5 text-foreground/65" aria-hidden />
+      <span>{label}</span>
     </li>
   );
 }

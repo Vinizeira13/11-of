@@ -24,10 +24,20 @@ export function PlayerNamePicker({
   const groupId = useId();
 
   return (
-    <fieldset className={cn("space-y-3", className)}>
-      <div className="flex items-baseline justify-between gap-3">
-        <legend className="text-sm font-medium">Nome na camisa</legend>
-        <span className="text-xs text-muted-foreground">Sem custo extra</span>
+    <fieldset
+      className={cn(
+        "relative space-y-3 rounded-2xl border border-border/70 bg-card/30 p-4",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <legend className="inline-flex items-center gap-2 px-1 text-sm font-semibold">
+          Nome na camisa
+          <span className="inline-flex items-center rounded-full bg-turf/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-turf">
+            Grátis
+          </span>
+        </legend>
+        <span className="text-[11px] text-muted-foreground">+1 dia útil</span>
       </div>
 
       <div
@@ -53,8 +63,7 @@ export function PlayerNamePicker({
       </div>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Aplicada por termotransferência oficial. Adiciona 1 dia útil ao
-        despacho.
+        Termotransferência oficial nas costas — sem custo extra.
       </p>
     </fieldset>
   );

@@ -55,23 +55,10 @@ export function PdpUrgency() {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-turf/25 bg-gradient-to-br from-turf/[0.08] via-turf/[0.03] to-transparent transition-[opacity,transform] duration-700 ease-out ${
+      className={`relative overflow-hidden rounded-2xl border border-border/70 bg-card/40 transition-[opacity,transform] duration-700 ease-out ${
         mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
       }`}
     >
-      {/* breathing halo */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-[radial-gradient(ellipse_at_top,var(--turf)/0.18,transparent_60%)] blur-2xl"
-      />
-      {/* shimmer scan */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 animate-shimmer opacity-40"
-      />
-      {/* noise texture */}
-      <div aria-hidden className="noise absolute inset-0 opacity-20" />
-
       {/* Row 1 — Dispatch */}
       <div className="relative flex items-center justify-between gap-3 px-4 py-3.5">
         <div className="flex items-center gap-3">
