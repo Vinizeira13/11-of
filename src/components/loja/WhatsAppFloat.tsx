@@ -10,8 +10,18 @@ const NUDGE_COOLDOWN = 1000 * 60 * 60 * 24; // reappear every 24h max
 
 export function WhatsAppFloat({ phone }: { phone: string }) {
   const [nudgeOpen, setNudgeOpen] = useState(false);
+  // When the mobile sticky CTA is up, lift the floating button so the two
+  // don't fight for the same bottom-right corner.
+  const [liftAboveCta, setLiftAboveCta] = useState(false);
 
   useEffect(() => {
+    // Skip the auto-nudge entirely on small screens — the card overlaps the
+    // gallery + sticky CTA and reads as spam. Desktop still gets it.
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px)").matches;
+    if (isMobile) return;
+
     let dismissedAt = 0;
     try {
       dismissedAt = Number(window.localStorage.getItem(STORAGE_KEY) ?? 0);
@@ -19,6 +29,27 @@ export function WhatsAppFloat({ phone }: { phone: string }) {
     if (Date.now() - dismissedAt < NUDGE_COOLDOWN) return;
     const t = setTimeout(() => setNudgeOpen(true), NUDGE_DELAY);
     return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    function poll() {
+      const bar = document.querySelector<HTMLElement>(
+        "[data-mobile-cta-visible]",
+      );
+      setLiftAboveCta(bar?.getAttribute("data-mobile-cta-visible") === "true");
+    }
+    poll();
+    // The sticky CTA toggles via IntersectionObserver, so its data attribute
+    // changes asynchronously. A MutationObserver is the cleanest way to
+    // react without setting up an extra global event.
+    const target = document.body;
+    const mo = new MutationObserver(poll);
+    mo.observe(target, {
+      attributes: true,
+      attributeFilter: ["data-mobile-cta-visible"],
+      subtree: true,
+    });
+    return () => mo.disconnect();
   }, []);
 
   function dismiss() {
@@ -33,7 +64,16 @@ export function WhatsAppFloat({ phone }: { phone: string }) {
   )}`;
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3 print:hidden">
+    <div
+      data-cta-stacked={liftAboveCta}
+      className={cn(
+        "fixed right-5 z-40 flex flex-col items-end gap-3 print:hidden transition-[bottom] duration-200",
+        // bottom: clear of the mobile sticky CTA (~72px tall) + safe-area
+        liftAboveCta
+          ? "bottom-[calc(env(safe-area-inset-bottom)+88px)]"
+          : "bottom-[calc(env(safe-area-inset-bottom)+1.25rem)]",
+      )}
+    >
       {nudgeOpen && (
         <div
           className={cn(

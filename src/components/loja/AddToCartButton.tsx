@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import type { Product, Variant } from "@/lib/catalog";
@@ -16,6 +16,10 @@ import {
   formatPersonalization,
   type PlayerOption,
 } from "@/lib/personalization";
+import {
+  PDP_REQUEST_ADD,
+  emitVariantChanged,
+} from "@/lib/pdp-events";
 import { cn } from "@/lib/utils";
 
 export function AddToCartButton({
@@ -68,6 +72,26 @@ export function AddToCartButton({
       }
     });
   }
+
+  // Broadcast current readiness so the bottom sticky CTA can mirror state.
+  useEffect(() => {
+    emitVariantChanged({
+      ready: !disabled,
+      sizeLabel: variant?.size ?? null,
+    });
+  }, [disabled, variant]);
+
+  // Listen for the sticky CTA asking us to fire the add.
+  useEffect(() => {
+    function onRequest() {
+      handleAdd();
+    }
+    window.addEventListener(PDP_REQUEST_ADD, onRequest);
+    return () => window.removeEventListener(PDP_REQUEST_ADD, onRequest);
+    // handleAdd captures the latest variant/picker via closure on each render;
+    // we re-bind so the listener always calls the freshest copy.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
 
   return (
     <div className={cn("space-y-5", className)}>

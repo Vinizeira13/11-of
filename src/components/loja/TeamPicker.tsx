@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import {
   Dialog,
@@ -24,13 +25,21 @@ const TIMEOUT_MS = 45_000;
 /**
  * First-visit team picker. Doesn't ambush the user — opens only when the
  * visitor either scrolls past the Hero (~900px) OR dwells 45s on the site,
- * never both. One-shot per browser (stored in localStorage).
+ * never both. One-shot per browser (stored in localStorage). Skipped on
+ * PDPs and checkout (the customer's intent there is to buy, not to pick a
+ * favorite — interrupting kills conversion).
  */
 export function TeamPicker() {
   const [open, setOpen] = useState(false);
   const { code, set } = useFavoriteTeam();
+  const pathname = usePathname() ?? "";
+  const isPurchaseFlow =
+    pathname.startsWith("/produtos/") ||
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/pedido");
 
   useEffect(() => {
+    if (isPurchaseFlow) return;
     if (hasSeenTeamPicker()) return;
 
     let fired = false;
@@ -54,7 +63,7 @@ export function TeamPicker() {
       window.removeEventListener("scroll", onScroll);
       window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [isPurchaseFlow]);
 
   function pick(teamCode: string) {
     set(teamCode);

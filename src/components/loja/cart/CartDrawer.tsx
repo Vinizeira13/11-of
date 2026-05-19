@@ -176,7 +176,7 @@ export function CartDrawer() {
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full"
+                              className="size-10 rounded-full"
                               onClick={() => updateQty(line.variantId, pers, line.qty - 1)}
                               aria-label="Diminuir quantidade"
                               disabled={line.qty <= 1}
@@ -190,7 +190,7 @@ export function CartDrawer() {
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full"
+                              className="size-10 rounded-full"
                               onClick={() => updateQty(line.variantId, pers, line.qty + 1)}
                               aria-label="Aumentar quantidade"
                               disabled={line.qty >= line.variant.stockQty}

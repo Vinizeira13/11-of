@@ -1,10 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { splitImages, BLUR_DATA_URL } from "@/lib/images";
 import { cn } from "@/lib/utils";
+
+const SWIPE_THRESHOLD_PX = 40;
+const SWIPE_VERTICAL_MAX = 60;
 
 /**
  * Premium PDP gallery. Displays the "product shots" as the main gallery and
@@ -23,6 +26,30 @@ export function ProductGallerySplit({
   const [active, setActive] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const current = list[active] ?? list[0];
+
+  // Touch-swipe state. Suppress the click → lightbox handler when a swipe
+  // actually moved (otherwise every swipe also opens the modal).
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const swipedRef = useRef(false);
+
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+    swipedRef.current = false;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || list.length < 2) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dy) > SWIPE_VERTICAL_MAX) return;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return;
+    swipedRef.current = true;
+    if (dx < 0) setActive((i) => (i + 1) % list.length);
+    else setActive((i) => (i - 1 + list.length) % list.length);
+  }
 
   useEffect(() => {
     if (!zoomed) return;
@@ -45,10 +72,18 @@ export function ProductGallerySplit({
     <div className="flex flex-col gap-3 md:flex-row-reverse md:gap-5">
       <button
         type="button"
-        onClick={() => setZoomed(true)}
+        onClick={() => {
+          if (swipedRef.current) {
+            swipedRef.current = false;
+            return;
+          }
+          setZoomed(true);
+        }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
         data-fly-source="product-gallery"
-        aria-label="Ampliar imagem"
-        className="group relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
+        aria-label="Ampliar imagem · arraste para trocar"
+        className="group relative aspect-[4/5] w-full touch-pan-y overflow-hidden rounded-2xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
       >
         {current && (
           <Image
