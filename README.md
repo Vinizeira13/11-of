@@ -6,6 +6,10 @@
 
 [Explore the storefront](https://loja-theta-plum.vercel.app) · [Application source](./src) · [Engineering context](./llms.txt)
 
+![11 Of storefront with editorial typography and football jersey imagery](./docs/preview.png)
+
+*Public storefront preview. Third-party product imagery retains its original ownership.*
+
 ## Product experience
 
 - **Discovery:** catalog filters, product search, team collections and dedicated editorial pages.
