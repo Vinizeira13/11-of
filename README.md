@@ -1,206 +1,108 @@
 # 11 Of
 
-> Camisas oficiais das seleções da Copa do Mundo 2026. Tiragem controlada, editorial, PIX.
+**An editorial football jersey storefront built for Brazilian commerce.**
 
-Storefront custom em Next.js 16, sem Shopify, pensado para o mercado brasileiro. Curadoria vertical: só camisas oficiais Nike da Copa 2026, despacho em 24h, PIX com 15% OFF automático.
+11 Of combines a product catalog, immersive team editorials and a PIX checkout in a custom Next.js application. Dark surfaces, oversized typography, a green accent and motion carry one visual identity from discovery to the order page.
 
-**Brand:** 11 Of · **Stack:** Next 16 + React 19 + Tailwind v4 + Supabase + pague.dev
+[Explore the storefront](https://loja-theta-plum.vercel.app) · [Application source](./src) · [Engineering context](./llms.txt)
 
----
+## Product experience
 
-## Preview
+- **Discovery:** catalog filters, product search, team collections and dedicated editorial pages.
+- **Product detail:** product and editorial galleries, size selection, a fit calculator and jersey personalization.
+- **Shopping:** a cart drawer, favorites, recently viewed items and a dedicated checkout layout.
+- **Brazilian checkout:** CPF and postal-code validation, BRL pricing, shipping estimates and PIX payment presentation.
+- **Order operations:** order status, delivery tracking views, stock notification requests and an admin delivery interface.
 
-- **Home** — Hero bento + countdown Copa + editorial das seleções + press + stats
-- **Catálogo** (`/produtos`) — Filtros URL-sync (confederação, tamanho, estoque, sort)
-- **PDP** (`/produtos/[slug]`) — Gallery separada de editorial, ColorSwatches, FitCalculator, Share, JSON-LD rich snippets
-- **Editorial** (`/editorial`) — Lookbook bento de todos os editoriais Nike
-- **Sobre** (`/sobre`) — Manifesto + values + stats
-- **Favoritos** (`/favoritos`) — Wishlist em localStorage
-- **Checkout** (`/checkout`) — Shopify-style 1-página com PIX em destaque
-- **Pedido** (`/pedido/[id]`) — QR PIX + polling de status
+The storefront is public. Reproducing the complete checkout requires a compatible Supabase database and a configured payment account; the repository does not include database migrations or seeds. The public site is a visual reference, not a payment sandbox.
 
----
+## Engineering
 
-## Stack
+| Layer | Implementation |
+| --- | --- |
+| Application | Next.js 16.2.4 App Router, React 19.2.4, TypeScript |
+| Interface | Tailwind CSS 4, shadcn/ui and Radix primitives, Lucide icons |
+| Motion | GSAP and ScrollTrigger |
+| Data | Supabase Postgres, SSR clients and storage image delivery |
+| Payments | Server-side PagNet Brasil client and a transaction reconciliation webhook |
+| Cart | HMAC-signed HTTP-only cookie with bounded line counts and quantities |
 
-| Camada | Tech |
-|---|---|
-| Framework | Next.js 16.2 (App Router, Turbopack, Server Actions) |
-| UI | React 19.2, Tailwind v4 (CSS-first), shadcn/ui preset radix-nova |
-| Typography | Geist Sans + Mono, Space Grotesk (display), Instrument Serif (editorial) |
-| DB | Supabase Postgres + Storage + SSR (`@supabase/ssr`) |
-| Pagamento | pague.dev — PIX exclusivo, HMAC webhook |
-| Animação | GSAP + ScrollTrigger (reveals, flip, fly-to-cart) |
-| Deploy | Vercel (auto em `main`) |
+Prices remain integer cents throughout the data model and PagNet request builder. Checkout resolves product variants on the server, requests stock reservations through database RPCs, records order snapshots and then creates a PIX charge. The webhook retrieves the transaction from PagNet before applying payment state changes.
 
----
-
-## Como rodar
-
-### 1. Instalar
-
-```bash
-npm install
-```
-
-### 2. Variáveis de ambiente
-
-Copie `.env.example` pra `.env.local` e preencha:
-
-```bash
-# Supabase (pegue em supabase.com/dashboard/project/_/settings/api)
-NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
-SUPABASE_SERVICE_ROLE_KEY=<service role secret — SERVER ONLY>
-
-# Cart cookie HMAC (>= 32 chars em produção)
-CART_SECRET=<openssl rand -hex 32>
-
-# pague.dev (pd_test_* em dev, pd_live_* em prod)
-PAGUE_API_KEY=<api key>
-PAGUE_WEBHOOK_SECRET=<webhook signing secret>
-
-# Site (usado em metadata, JSON-LD, share URL)
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
-### 3. Supabase
-
-Aplique a migration inicial com tabelas + RLS + RPCs (`reserve_stock` / `release_stock`). Suba imagens dos produtos em `storage/v1/object/public/jersey-assets/nike/<code>/` e referencie as URLs no array `products.images` do DB.
-
-Seed das 8 seleções descrito em `src/lib/teams.ts` — metadata de time, jogador estrela, cor primária e confederação.
-
-### 4. Dev
-
-```bash
-npm run dev      # Next dev + Turbopack (http://localhost:3000)
-npm run build    # production build
-npm run start    # run production build
-npm run lint     # ESLint flat config
-```
-
----
-
-## Arquitetura
-
-```
+```text
 src/
 ├── app/
-│   ├── (loja)/              route group com layout principal (header/footer)
-│   │   ├── page.tsx         Home
-│   │   ├── produtos/
-│   │   ├── produtos/[slug]/ PDP
-│   │   ├── editorial/
-│   │   ├── sobre/
-│   │   └── favoritos/
-│   ├── checkout/            fora do group — layout próprio sem header/footer
-│   ├── pedido/[id]/         QR PIX + polling
-│   ├── api/webhooks/pague/  HMAC + idempotência via webhook_events
-│   ├── _actions/            Server Actions (cart, checkout, pix)
-│   ├── layout.tsx           fonts + metadata + Toaster
-│   ├── loading.tsx          global shimmer
-│   └── not-found.tsx        404 editorial
-│
+│   ├── (loja)/                 Storefront, catalog, editorial and favorites
+│   ├── checkout/               Dedicated checkout layout
+│   ├── pedido/[id]/            Payment and delivery status
+│   ├── admin/                  Order and delivery administration
+│   ├── _actions/               Cart, checkout, PIX and delivery mutations
+│   └── api/webhooks/pagnet/    Payment reconciliation endpoint
 ├── components/
-│   ├── loja/                todos os componentes da loja
-│   └── ui/                  shadcn primitives
-│
-├── lib/
-│   ├── brand.ts             BRAND_NAME, slogan, PIX_DISCOUNT_PCT
-│   ├── teams.ts             metadata das 8 seleções
-│   ├── catalog.ts           queries Supabase
-│   ├── cart.ts              cookie HMAC-signed
-│   ├── images.ts            splitImages (product vs editorial)
-│   ├── wishlist.ts          hook localStorage
-│   ├── recently-viewed.ts   hook localStorage
-│   ├── favorite-team.ts     hook localStorage
-│   ├── pague/client.ts      createPixCharge + verifyWebhook
-│   └── supabase/            server/client/service/middleware
-│
-└── data/
-    ├── announcements.ts     barra superior
-    └── press.ts             quotes da imprensa
+│   ├── loja/                   Storefront components and animations
+│   ├── admin/                  Admin components
+│   └── ui/                     Shared interface primitives
+└── lib/
+    ├── catalog.ts              Product queries and cart resolution
+    ├── cart.ts                 Signed cart serialization
+    ├── brand.ts                Brand, locale and pricing constants
+    ├── pagnet/                 Server-only payment client
+    └── supabase/               Browser and server data clients
 ```
 
----
+## Local development
 
-## Schema Supabase
+Use Node.js 20.9 or newer and npm.
 
-5 tabelas essenciais:
-
-- `products` — slug, name, description, category, price_cents, compare_at_cents, images[], status, sort_order
-- `product_variants` — product_id, size, sku, stock_qty
-- `orders` — short_code, customer_*, shipping_address jsonb, cents, status, pix_*, paid_at
-- `order_items` — order_id, product_id, variant_id, qty, unit_price_cents, snapshots
-- `webhook_events` — event_id PK pra idempotência
-
-**RLS:** products e variants com leitura pública apenas onde `status='published'`. Orders e items só service role.
-
-**RPCs:** `reserve_stock(variant_id, qty)` atômico pra evitar race no checkout.
-
-Money **sempre em cents** no DB; conversão pra BRL só na borda de pague.dev.
-
----
-
-## Fluxo de compra
-
-```
-Home/PDP  →  addToCart  →  cart cookie HMAC-signed
-                                    ↓
-                             CartDrawer abre
-                                    ↓
-                            /checkout (1-página)
-                                    ↓
-    createOrderAction: reserve_stock RPC → insert order → pague.dev POST /v1/pix
-                                    ↓
-                          /pedido/[id]  (QR + polling 5s)
-                                    ↓
-                ← webhook POST /api/webhooks/pague (HMAC)
-                   idempotente via webhook_events.event_id
-                                    ↓
-                          order.payment_status = paid
+```bash
+git clone https://github.com/Vinizeira13/11-of.git
+cd 11-of
+npm ci
+cp .env.example .env.local
 ```
 
----
+Configure the variables below, provision the database contract described in [llms.txt](./llms.txt), then start the app:
 
-## Deploy
+```bash
+npm run dev
+```
 
-**Vercel:** push em `main` → auto-deploy (~1-2min). Configure as env vars no dashboard (todas do `.env.local` exceto `NEXT_PUBLIC_SITE_URL` — troque pela URL de produção).
+Open [localhost:3000](http://localhost:3000). An empty Supabase project is insufficient: the catalog expects existing tables, and checkout depends on database functions that are not distributed here.
 
-**Webhook:** aponte o endpoint da pague.dev pra `https://<seu-domínio>/api/webhooks/pague`.
+### Configuration
 
----
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project endpoint |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public client key; database access depends on its grants and policies |
+| `NEXT_PUBLIC_SITE_URL` | Canonical origin for metadata, links and payment callbacks |
+| `CART_SECRET` | Server-only cart signing secret; at least 32 characters in production |
+| `PAGNET_PUBLIC_KEY` | PagNet credential used by the server client |
+| `PAGNET_SECRET_KEY` | PagNet secret used by the server client |
+| `PAGNET_API_BASE` | Optional payment API endpoint override |
+| `ADMIN_PASSWORD` | Enables the admin login when configured |
+| `ADMIN_RPC_TOKEN` | Server-side token expected by the delivery update RPC |
+| `BREAKING_NEWS_OFF` | Optional switch; `1` disables the breaking-news experience |
 
-## Convenções
+Keep payment and admin credentials server-side. The current source does not use the older `PAGUE_*` or `SUPABASE_SERVICE_ROLE_KEY` variables.
 
-- Money sempre em **cents** (int). Display via `formatBRL(cents)`.
-- pague.dev recebe `amount` em **BRL number** (não cents).
-- PIX-only no MVP. Desconto 15% OFF em `PIX_DISCOUNT_PCT`.
-- Brand name em 1 só lugar (`@/lib/brand.ts`).
-- `src/lib/supabase/service.ts` e `src/lib/pague/*` são `server-only`. Nunca importar em Client Component.
-- Cart cookie HMAC-signed, cap 20 linhas, max 10 qty/linha.
-- `short_code` de pedido humano (`ON-2026-XXXXXX`). UUID é canonical.
-- PIX TTL 30min. Botão "Gerar novo PIX" se expirado.
-- Webhook idempotente via `INSERT INTO webhook_events ON CONFLICT DO NOTHING`.
-- Next 16: `generateStaticParams` não pode chamar server client com cookies — PDP é dinâmico.
+## Development commands
 
----
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create the production build |
+| `npm run start` | Serve an existing production build |
+| `npm run lint` | Run ESLint |
 
-## Próximas frentes
+## Integration status
 
-- [ ] Integração real pague.dev em sandbox (`pd_test_*`)
-- [ ] Homepage personalizada pelo `favoriteTeam` (localStorage)
-- [ ] Color swatches Away/Third (quando artista entregar)
-- [ ] Admin custom (hoje: Supabase Studio)
-- [ ] Cupons / gift cards
-- [ ] i18n (hoje: PT-BR only)
+- Without PagNet credentials, the payment client returns a mock charge. This is not a completed payment and still requires the database-backed order flow.
+- The callback route is `/api/webhooks/pagnet`. It reconciles against the payment provider; it does not use the previous pague.dev HMAC contract.
+- Database migrations, RPC definitions and access policies are not included. Review those in an isolated environment before enabling checkout or administration.
+- Payment completion, refunds, retry behavior and fulfillment require end-to-end validation with the configured services.
+- The interface is in Brazilian Portuguese. Brand assets, catalog content, contact details and commercial claims must be reviewed for any independent deployment.
 
----
+## Credits and reuse
 
-## Documentação para LLMs
-
-Quem pegar esse projeto com Claude Code, Cursor, Aider ou qualquer outro LLM deve ler primeiro o [llms.txt](./llms.txt) — contexto denso com estrutura completa, gotchas, convenções e TODOs priorizados.
-
----
-
-**Feito no Brasil** 🇧🇷
+Built with Next.js, Supabase, GSAP, shadcn/ui and Radix. Football brands, team identities and product imagery belong to their respective owners. This repository does not include a standalone license file; confirm reuse rights before redistributing code or assets.

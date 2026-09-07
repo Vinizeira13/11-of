@@ -1,36 +1,22 @@
 @AGENTS.md
 
-# Loja — Convenções
+# 11 Of development context
 
-## Princípio: Subtração (Steve Jobs)
-Adicione apenas o que serve à venda. Sem reviews, sem discount codes, sem auth de cliente, sem admin custom no MVP. Tudo isso é v2 — quando doer, adiciona.
-
-## Stack
-- Next.js 16.2.x (App Router, Server Actions, Turbopack default)
-- React 19.2.x
-- Tailwind v4 (CSS-first, sem `tailwind.config.*`)
-- shadcn/ui preset Nova (Lucide + Geist), base color `neutral`
-- Supabase (`@supabase/ssr` 0.10+, `@supabase/supabase-js` 2.103+)
-- pague.dev — PIX único método de pagamento
-- Vercel deploy
+Read [README.md](./README.md) for setup and [llms.txt](./llms.txt) for the source map and external database contract. Treat source code as authoritative when implementation and older notes disagree.
 
 ## Conventions
-- **Money**: sempre em cents (int) no DB, código e tipos. Exibe via `formatBRL(cents)` de `@/lib/money`.
-- **API pague.dev**: requer `amount` em BRL (não cents) — converter na borda em `@/lib/pague/client.ts`.
-- **Brand**: única fonte é `@/lib/brand.ts` (`BRAND_NAME`, `BRAND_TAGLINE`, etc.). Renomear lá.
-- **Locale**: PT-BR only. Datas, moeda, mensagens.
-- **Server-only files**: tudo em `@/lib/supabase/service.ts` e `@/lib/pague/*` é server-only. NUNCA importar em Client Component.
-- **Env vars**: prefixo `NEXT_PUBLIC_` apenas para o client. Service keys e segredos jamais.
-- **Cart**: cookie httpOnly assinado. Cap 20 items. Sem persistência em DB no MVP.
-- **Pedidos**: `short_code` humano (LJ-2026-0001). UUID `id` é canonical.
-- **PIX**: 30 min de TTL (1800s). Botão "Gerar novo PIX" se expirar.
-- **Webhook**: idempotência via tabela `webhook_events` (`event_id` PK).
-- **RLS**: público lê só `status='published'`. Pedidos só com service role.
 
-## Comandos
-- `npm run dev` — Turbopack dev
-- `npm run build` — production build
-- `npm run lint` — ESLint flat config
+- Keep the interface in Brazilian Portuguese and display currency in BRL.
+- Store and calculate money in integer cents. The PagNet client sends cents.
+- Centralize brand and pricing constants in `src/lib/brand.ts`.
+- Keep `src/lib/cart.ts` and `src/lib/pagnet/client.ts` on the server; both import `server-only`.
+- Only expose values intended for browsers through `NEXT_PUBLIC_*` variables.
+- Keep dependency upgrades separate from routine edits; the pinned major versions have compatibility constraints.
+- Preserve the signed cart format, line and quantity limits, and personalization validation.
+- `/checkout` intentionally sits outside the `(loja)` route group.
+- The active payment integration is PagNet, under `src/lib/pagnet/` and `/api/webhooks/pagnet`.
+- Database policies and RPC implementations are external to this checkout. Do not assume they match an older README or infer verified authorization from client code alone.
 
-## Plan source of truth
-`/Users/caio/.claude/plans/vast-churning-bear.md`
+## Checks
+
+Run `npm run lint` and `npm run build` for relevant code changes. Use an isolated, configured database and payment environment for integration checks. A successful build does not establish that checkout, payment reconciliation or fulfillment works end to end.

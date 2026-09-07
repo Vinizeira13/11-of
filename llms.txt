@@ -1,292 +1,102 @@
-# 11 Of — LLM context pack
+# 11 Of: engineering context
 
-Este arquivo é um _loader_ pra qualquer LLM (Claude Code, Cursor, Aider, etc.) que pegar o projeto. Leia ele primeiro. Ele substitui o papel de um ADR + handoff note combinados.
+11 Of is a custom football jersey storefront for the Brazilian market. Read
+AGENTS.md before editing Next.js code. README.md contains setup instructions;
+package.json and the application source are authoritative for implementation.
 
----
+## Identity and interface
 
-## 1. O que é
+- Brand constants: src/lib/brand.ts
+- Wordmark: src/components/loja/BrandMark.tsx
+- Theme: src/app/globals.css, Tailwind CSS 4 and OKLCH tokens
+- Motion: src/components/loja/animations/ and src/lib/fly-to-cart.ts
+- Locale: Brazilian Portuguese; display currency: BRL
+- Fonts: configured in src/app/layout.tsx
 
-Ecommerce custom em Next.js 16 para venda das **camisas oficiais Nike das 8 seleções da Copa do Mundo 2026** (Brasil, França, Inglaterra, Holanda, Croácia, Uruguai, Noruega, Canadá). Mercado brasileiro, PIX-only (15% OFF automático), despacho em 24h. Sem Shopify. Tiragem controlada — escassez é parte do produto.
+## Application map
 
-**Brand name canônico:** `11 Of`. Wordmark = número `11` bold + ponto turf + `Of` italic serif. Definido em `src/components/loja/BrandMark.tsx`. Nunca renomear fora de `src/lib/brand.ts`.
+- src/app/(loja)/: storefront, catalog, product detail, editorials and favorites
+- src/app/checkout/: dedicated checkout without the storefront layout
+- src/app/pedido/[id]/: PIX presentation and payment/delivery status
+- src/app/admin/: login, order list and delivery management
+- src/app/_actions/cart.ts: add, update and remove signed cart entries
+- src/app/_actions/checkout.ts: validate, reserve stock, create order and charge
+- src/app/_actions/pix.ts: payment polling and regeneration
+- src/app/_actions/delivery.ts: admin login and delivery updates
+- src/app/_actions/notify.ts: stock notification registration
+- src/app/api/webhooks/pagnet/route.ts: payment transaction reconciliation
+- src/lib/catalog.ts: product/variant queries and cart resolution
+- src/lib/images.ts: product/editorial image classification
+- src/lib/image-loader.ts: Supabase image transformation URLs
+- src/lib/supabase/: SSR, browser and session-refresh clients
+- src/proxy.ts: Supabase session refresh
 
-**Aesthetic:** dark theme é o default (não é toggle). Editorial premium. Accent color `--turf` neon green (`oklch(0.82 0.22 140)`). Tipografia: Geist (body), Space Grotesk (display, classe `font-display`), Instrument Serif (editorial italic, classe `font-editorial`).
+## External database contract
 
-**Currency/locale:** BRL, PT-BR only.
+The repository does not include SQL migrations, seeds or database policies.
+These names are inferred from application calls, not verified database state.
 
----
+Tables used by the application:
+- products: published catalog, integer prices, image URLs and ordering
+- product_variants: product relation, size and stock quantity
+- orders: customer, shipping, payment and delivery state
+- order_items: quantity, variant references and purchase-time snapshots
+- webhook_events: event identity used for duplicate detection
+- notify_waitlist: product and email registrations
 
-## 2. Stack
+RPCs used by the application:
+- reserve_stock(p_variant_id, p_qty)
+- release_stock(p_variant_id, p_qty)
+- delete_pending_order(p_order_id)
+- set_order_pix: see the current checkout and PIX actions for arguments
+- webhook_mark_paid(p_order_id, p_paid_at)
+- webhook_mark_failed(p_order_id, p_payment_status)
+- admin_update_delivery: see the current delivery action for arguments
 
-- Next.js **16.2.4** App Router + Turbopack. ⚠️ Tem breaking changes vs. treinos de LLM antigos — sempre leia `node_modules/next/dist/docs/` antes de chutar APIs.
-- React 19.2
-- Tailwind v4 **CSS-first** (sem `tailwind.config.*`, tokens em `@theme inline` no `globals.css`)
-- shadcn/ui preset `radix-nova`, baseColor `neutral`, registry `@shadcn`
-- Supabase: Postgres + Storage + SSR (`@supabase/ssr` 0.10+)
-- pague.dev — PIX único gateway de pagamento
-- GSAP + ScrollTrigger — reveals, flip, fly-to-cart
-- Deploy: Vercel (push em `main` → auto)
+The current Supabase clients use NEXT_PUBLIC_SUPABASE_ANON_KEY. No service-role
+client exists in this checkout. Verify grants, row-level security and RPC
+authorization in the actual database before exercising writes.
 
-**Versões críticas:** `package.json` é canônico. Não "atualize" dependências sem pedir — algumas breaking (p.ex., `lucide-react@1.8` removeu ícones brand como `Instagram`, já resolvido com SVGs inline).
+## Checkout and payments
 
----
+1. Read and validate the signed cart cookie.
+2. Resolve variants and current prices from Supabase.
+3. Validate customer and address fields with Zod.
+4. Request stock reservations through reserve_stock, releasing reservations
+   on handled failure paths.
+5. Insert an order and purchase-time item snapshots.
+6. Call createPixCharge in src/lib/pagnet/client.ts.
+7. Store PIX data through set_order_pix, clear the cart and redirect to the order.
 
-## 3. Estrutura
+PagNet uses HTTP Basic credentials on the server. Amounts remain integer cents
+in its request builder. Without both credentials the client creates a mock
+charge; this does not simulate a confirmed payment. Current expiry is one day.
 
-```
-src/
-├── app/
-│   ├── (loja)/                        route group com layout de loja (Header+Footer+CartDrawer+TeamPicker)
-│   │   ├── layout.tsx                 busca produtos + cart lines (RSC) e passa pra CartProvider
-│   │   ├── page.tsx                   Home: Hero → TeamStripe → Stats → FeaturedGrid → Manifesto → EditorialSection → MidBanner → PressBand → FeaturedGrid2 → RecentlyViewed → TrustBand
-│   │   ├── produtos/
-│   │   │   ├── page.tsx               Catalog wrapper
-│   │   │   ├── loading.tsx            skeleton
-│   │   │   └── [slug]/
-│   │   │       ├── page.tsx           PDP (muito composto — ver seção abaixo)
-│   │   │       └── loading.tsx
-│   │   ├── editorial/page.tsx         Lookbook bento
-│   │   ├── sobre/page.tsx             Manifesto
-│   │   └── favoritos/                 Wishlist (page.tsx RSC + FavoritesClient)
-│   ├── checkout/                      FORA do (loja) group — layout próprio (header minimal, zero footer)
-│   │   ├── layout.tsx                 renderiza só children
-│   │   └── page.tsx                   CheckoutForm + CheckoutSummary + CheckoutSteps
-│   ├── pedido/[id]/page.tsx           QR PIX + polling (ainda mock — pague.dev real é TODO)
-│   ├── api/webhooks/pague/route.ts    HMAC verify + idempotência via webhook_events
-│   ├── _actions/
-│   │   ├── cart.ts                    addToCart / updateQty / removeFromCart
-│   │   ├── checkout.ts                createOrderAction — reserve_stock RPC + order insert + pague.dev charge
-│   │   └── pix.ts                     regenerate / getStatus
-│   ├── layout.tsx                     root — fonts, metadata, Toaster
-│   ├── globals.css                    Tailwind v4 tokens (OKLCH dark theme + turf/gold)
-│   ├── loading.tsx                    global wordmark shimmer
-│   └── not-found.tsx                  404 editorial
-│
-├── components/
-│   ├── ui/                            shadcn primitives (button, dialog, sheet, input-group, field, empty, etc.)
-│   └── loja/                          todos os componentes de domínio
-│       ├── animations/                RevealText, MaskReveal, ScrollReveal — todos GSAP, useGSAP hook
-│       ├── cart/                      CartContext (useOptimistic), CartButton, CartDrawer (com cross-sell), FreeShippingBar
-│       ├── Hero, TeamStripe, StatsBand, FeaturedGrid, MidBanner
-│       ├── EditorialSection, Manifesto, PressBand, TrustBand
-│       ├── ProductCard, ProductGallery, ProductGallerySplit, ProductEditorialStrip, ProductFAQ, ProductSpecs
-│       ├── AddToCartButton, SizeSelector, SizeGuide, FitCalculator
-│       ├── WishlistButton, FavoritesButton, RecentlyViewed, TrackRecentlyViewed
-│       ├── ColorSwatches, ShareButtons, ReviewsBadge, SocialProof, ScrollProgress
-│       ├── CountdownTimer (GSAP flip + useInterval), StickyMobileCTA
-│       ├── AnnouncementBar (sessionStorage), Marquee, BrandMark
-│       ├── Header (SSR) → HeaderClient (client — busca, mobile nav, favoritos)
-│       ├── MegaMenu, MobileNav, SearchDialog (⌘K)
-│       ├── TeamPicker (first-visit modal), Newsletter, Footer
-│       └── CheckoutForm, CheckoutSteps, CheckoutSummary
-│
-├── lib/
-│   ├── brand.ts                       ÚNICA fonte pra BRAND_NAME, slogan, PIX_DISCOUNT_PCT, WORLD_CUP_OPENING
-│   ├── teams.ts                       8 seleções (code, flag, conf, primaryColor, star, tagline)
-│   ├── catalog.ts                     getPublishedProducts, getProductBySlug, resolveCartLines, findVariant
-│   ├── cart.ts                        cookie HMAC-signed (server-only)
-│   ├── images.ts                      splitImages(images[]) → {product, editorial} — heurística por filename
-│   ├── money.ts                       formatBRL(cents)
-│   ├── pricing.ts                     pixDiscountCents
-│   ├── shipping.ts                    flat R$ 19,90, free acima R$ 299
-│   ├── cep.ts, cpf.ts                 máscara + validação + ViaCEP fetch
-│   ├── wishlist.ts, recently-viewed.ts, favorite-team.ts    hooks localStorage client-side
-│   ├── fly-to-cart.ts                 GSAP animação add-to-cart
-│   ├── pague/client.ts                createPixCharge + verifyWebhook (server-only)
-│   └── supabase/
-│       ├── server.ts                  createServerClient (RSC + Server Action — usa cookies)
-│       ├── client.ts                  createBrowserClient
-│       ├── service.ts                 service role (SERVER-ONLY, NUNCA em Client Component)
-│       └── middleware.ts              refresh session
-│
-├── data/
-│   ├── announcements.ts               barra topo (emoji + message)
-│   └── press.ts                       quotes da imprensa (Lance!, ESPN, GE, Placar, UOL)
-│
-└── proxy.ts                           middleware para Supabase cookie refresh
-```
+The webhook path is /api/webhooks/pagnet. It parses a callback, inserts an event
+record, retrieves the canonical transaction through the authenticated API,
+checks the order reference and amount, then calls a database state transition.
+This is not an HMAC webhook integration. Payment retry and recovery semantics
+still need to be verified against the external database and provider.
 
----
+## Cart and local preferences
 
-## 4. Data model
+- src/lib/cart.ts: HMAC-SHA256, HTTP-only cookie, 3,500-byte serialized limit,
+  at most 20 lines and 10 units per line; production secret >= 32 characters.
+- src/lib/personalization.ts: shared cart-line identity and name sanitization.
+- src/lib/wishlist.ts: browser-local favorites.
+- src/lib/recently-viewed.ts: browser-local product history.
+- src/lib/favorite-team.ts: browser-local team choice.
+- src/lib/checkout-draft.ts: checkout draft helpers.
 
-### Supabase projeto
-Nome: `onze-oficial` · id `ptkwacbeaecnntpwxoxv` · região sa-east-1.
+## Configuration and checks
 
-### Tabelas (todas com RLS)
+Use .env.example for current variable names. PAGUE_* and
+SUPABASE_SERVICE_ROLE_KEY belong to an earlier integration and are not consumed
+by the current source. Never put payment or admin secrets in NEXT_PUBLIC_*.
 
-| Tabela | PK | Colunas-chave | RLS |
-|---|---|---|---|
-| `products` | uuid id | slug, name, description, category, price_cents, compare_at_cents, images[], status, sort_order | public read onde status='published' |
-| `product_variants` | uuid id | product_id, size, sku, stock_qty (check ≥ 0) | public read via JOIN produto publicado |
-| `orders` | uuid id | short_code unique, customer_*, shipping_address jsonb, *_cents, status, payment_id, payment_status, pix_*, paid_at | insert public (checkout), select só service role |
-| `order_items` | uuid id | order_id, product_id, variant_id, qty, unit_price_cents, *_snapshot | só service role |
-| `webhook_events` | text event_id | event_type, processed_at | só service role |
+Commands: npm run dev, npm run lint, npm run build, npm run start.
 
-### RPCs
-- `reserve_stock(p_variant_id uuid, p_qty int) returns bool` — decrementa `stock_qty` atomicamente. Retorna false se sem estoque.
-- `release_stock(p_variant_id uuid, p_qty int)` — incrementa de volta (rollback).
-
-### Storage
-Imagens em **outro projeto Supabase** (`csojptgqkpaghnmeswvn` — jerseyzinhas) por reutilização de assets: `storage/v1/object/public/jersey-assets/nike/<code>/<N>_nike-football-2026-federation-kits-<country>-<type>.jpg`.
-
-Heurística em `src/lib/images.ts` separa product shots (`-home-\d+`, `-away-\d+`) de editorial (player shots). PDP usa o split: galeria = product shots, seção "Visto em campo" = editorial.
-
----
-
-## 5. Fluxo de compra
-
-```
-add-to-cart → cart cookie (HMAC-signed, 3.5KB cap) → optimistic via useOptimistic
-                                                         ↓
-                                                  CartDrawer abre
-                                                         ↓
-                                              /checkout (1-página)
-                                                         ↓
-  createOrderAction:
-   1. readCart() do cookie
-   2. resolveCartLines — pega produtos+variants+valida estoque
-   3. validate form com Zod (CPF, CEP, etc.)
-   4. reserve_stock RPC por item (transação atômica)
-   5. insert orders + order_items (snapshot dos nomes/sizes/imagens)
-   6. createPixCharge → pague.dev POST /v1/pix (amount em BRL, não cents)
-   7. update order com pix_qr/pix_copy/pix_expires_at
-   8. clearCart()
-   9. redirect(/pedido/[id])
-                                                         ↓
-                                         /pedido/[id] (QR + polling 5s)
-                                                         ↓
-                          ← POST /api/webhooks/pague (HMAC assinado)
-                              INSERT webhook_events (event_id PK) ON CONFLICT DO NOTHING
-                              UPDATE orders SET payment_status='completed', paid_at=now()
-                                                         ↓
-                                         order na vitrine = pago
-```
-
-### Gotchas no fluxo
-- Money **sempre cents** no DB. pague.dev recebe BRL (÷100 na borda).
-- `short_code` humano (`ON-2026-XXXXXX`). UUID é canonical pra rotas.
-- PIX TTL 30min. Botão "Gerar novo PIX" em `/pedido/[id]` regenera.
-- Webhook idempotente: mesmo evento 2x é no-op.
-- Out-of-stock race resolvido pelo RPC atômico.
-
----
-
-## 6. Client personalization (localStorage)
-
-Tudo client-side, sem auth:
-
-| Key | Hook | Uso |
-|---|---|---|
-| `11of:wishlist` | `useWishlist()` | Heart button em cards + PDP + página `/favoritos` + badge no Header |
-| `11of:recently-viewed` | `useRecentlyViewed()` + `recordView()` | Strip em home e PDP; rastreado por `<TrackRecentlyViewed slug>` client component |
-| `11of:favorite-team` | `useFavoriteTeam()` | Time favorito escolhido no `TeamPicker` — ainda não usado em rendering |
-| `11of:team-picker-seen` | `hasSeenTeamPicker()`, `markTeamPickerSeen()` | Flag pra não reabrir o modal |
-| `11of:announcement:dismissed` (sessionStorage) | `AnnouncementBar.tsx` | Esconde barra topo na sessão |
-
-Hooks emitem eventos customizados (`11of:wishlist-change`, `11of:recent-change`, `11of:favorite-team-change`) pra sincronizar instâncias na mesma aba.
-
----
-
-## 7. Convenções (importantes)
-
-- **Brand:** renomear só em `src/lib/brand.ts`.
-- **Money:** cents (int) em DB e TS. `formatBRL(cents)` pra display. pague.dev recebe `amount: cents/100`.
-- **Server-only files:** `src/lib/supabase/service.ts` e `src/lib/pague/*` têm `import "server-only"`. Nunca importar em Client Component.
-- **Env vars:** `NEXT_PUBLIC_*` só pra client. Service keys e secrets jamais.
-- **Cart:** cookie httpOnly assinado HMAC-SHA256 com `CART_SECRET` (≥32 chars em prod). Cap 20 linhas, 10 qty/linha.
-- **RLS:** padrão deny. Público lê só `status='published'`. Pedidos só service role.
-- **Imagens:** `next/image` com `unoptimized: !isProd` — dev evita timeout do Next image optimizer em originais Supabase 1-2MB. Prod usa Vercel CDN.
-- **Routes:** `/checkout` fora do route group `(loja)` pra não herdar header/footer da loja.
-- **SSR ↔ client:** `useState(() => diff(...))` causa hydration mismatch se depende de `Date.now()`. Use inicial `0` e popule no `useEffect`. Ver CountdownTimer e ShareButtons (absolute URL).
-- **`generateStaticParams` + cookies:** em Next 16 se o helper usa `cookies()` ele não roda em build. PDP é dinâmico (SSR a cada request).
-- **Lucide 1.8:** sem ícones brand (Instagram, TikTok, etc.). Usar SVG inline. Já feito em `Footer.tsx`, `ShareButtons.tsx`.
-- **`PageProps` global type:** gerado por Next em `.next/types/app.d.ts` — se `typecheck` reclamar, rode `next build` uma vez depois de deletar `.next`.
-
----
-
-## 8. Env vars (todas)
-
-```
-NEXT_PUBLIC_SUPABASE_URL=           # https://<ref>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=      # sb_publishable_... ou legacy anon JWT
-SUPABASE_SERVICE_ROLE_KEY=          # server-only, webhook + admin
-CART_SECRET=                        # openssl rand -hex 32 — HMAC do cart cookie
-PAGUE_API_KEY=                      # pd_test_* em dev, pd_live_* em prod
-PAGUE_WEBHOOK_SECRET=               # ≥16 chars em prod
-PAGUE_API_BASE=                     # opcional, default https://api.pague.dev
-NEXT_PUBLIC_SITE_URL=               # http://localhost:3000 em dev, https://<prod> em prod
-```
-
-Dev tem fallback inseguro pra `CART_SECRET` e `PAGUE_WEBHOOK_SECRET` — prod bloqueia build se faltando.
-
----
-
-## 9. Comandos de verificação
-
-```bash
-npm run dev         # Turbopack dev
-npm run build       # production build — faz typecheck + gen de tipos PageProps
-npm run lint        # ESLint flat
-```
-
-Visual: eu (Claude) uso `mcp__playwright__browser_*` pra Chrome MCP — `browser_navigate` + `browser_take_screenshot(fullPage: true)` + `browser_console_messages(level:"error")`. Mobile sweep: `browser_resize({width:390, height:844})`.
-
-Supabase: `mcp__claude_ai_Supabase__execute_sql(project_id, query)` pra ler ou seedar data. `list_tables(verbose:true)` pro schema.
-
----
-
-## 10. Estado atual (entregue)
-
-✅ Tudo do MVP listado no plano `/Users/caio/.claude/plans/vast-churning-bear.md`, **mais** camada editorial completa:
-
-- Home imersiva com 10+ sections
-- Catálogo com filtros URL-sync
-- PDP com galeria split + color swatches + fit calculator + share + social proof + reviews badge + product specs + scroll progress + recently viewed + sticky mobile CTA
-- Checkout 1-página estilo Shopify
-- Páginas Editorial, Sobre, Favoritos, 404, Loading
-- Mobile nav Sheet, Search cmdk-like (⌘K)
-- Wishlist, Recently Viewed, TeamPicker — tudo localStorage
-- Announcement marquee turf
-- SEO: JSON-LD Product + BreadcrumbList + AggregateRating
-- 8 produtos com descrições editoriais reais populadas
-
----
-
-## 11. TODOs restantes (priorizado)
-
-1. **Integração real pague.dev sandbox.** Hoje `/pedido/[id]` mostra QR mock. `createPixCharge` em `src/lib/pague/client.ts` precisa validar o schema de resposta do sandbox e o header de assinatura HMAC do webhook.
-2. **Personalização via favoriteTeam.** O hook `useFavoriteTeam` existe, `TeamPicker` salva — falta consumir. Sugestão: Hero variant com o time favorito em destaque, "Welcome back Brasileiro", reordenar FeaturedGrid.
-3. **Color swatches Away/Third.** Hoje lockados em `ColorSwatches.tsx`. Quando o artista entregar as variantes, adicionar produtos no DB com `category='selecao'` + relação com o time Home (nova coluna `variant_of` ou similar).
-4. **Admin custom.** Hoje: Supabase Studio direto. Quando doer (>50 pedidos), fazer `/admin` com listagem, marcar como enviado, exportar NFe.
-5. **Reviews reais.** `ReviewsBadge` mostra 4.9/12 mock. JSON-LD `aggregateRating` acompanha. Instrumentar feedback real quando tiver pedidos.
-6. **Cupons / gift cards.** Não existe. PIX OFF hardcoded. Próxima camada de promo.
-7. **i18n.** PT-BR only no MVP.
-8. **Error boundaries por rota** + `error.tsx` nas rotas sensíveis (checkout, pedido).
-9. **Sitemap.xml dinâmico** e `app/sitemap.ts`.
-10. **Analytics:** Vercel Analytics + Speed Insights.
-
----
-
-## 12. Quem encarar isso — como continuar
-
-1. **Leia este arquivo inteiro.**
-2. Abra `src/lib/brand.ts` pra entender nomenclatura.
-3. Abra `src/app/(loja)/page.tsx` pra ver a composição da home (todas as sections ordenadas).
-4. Abra `src/app/(loja)/produtos/[slug]/page.tsx` — é o arquivo mais composto; toda feature de conversão passa por ele.
-5. Rode `npm run dev` e clique em tudo. Abra `⌘K`. Toque heart. Visita PDP (veja aparecer em RecentlyViewed).
-6. Abra Supabase Studio do projeto `onze-oficial` pra ver a data.
-7. Se for adicionar feature, procure um componente análogo em `src/components/loja/` antes de criar novo. Escolha entre `ProductCard`, `MidBanner`, `EditorialSection`, `Manifesto` como templates de vibe.
-8. Quando criar componente novo, **não hardcode copy** — passa por prop. Textos de marca ficam em `src/lib/brand.ts` e `src/data/*`.
-9. **Não instale** coisa sem ler o package.json. Várias deps estão fixadas por motivos (Tailwind v4, Next 16, Lucide 1.8).
-10. **Toda mudança server-side** requer `import "server-only"` em top dos arquivos que não devem ir pro client.
-
-### Pra escalar o projeto além disso
-
-- Branch strategy: `main` → prod (auto-deploy). Features em branch com PR.
-- **Nunca** use `git push --force` em `main`.
-- Commits: use `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` quando LLM co-autorar.
-
----
-
-**Final.** Se ficar em dúvida entre duas abordagens, a filosofia é subtração (Steve Jobs + a 11 Of é editorial, não marketplace). Prefira o menos chamativo, o mais tipográfico, o que cabe na paleta dark+turf. Evite gradientes arco-íris, efeitos piscantes, pop-ups agressivos, social proof com cidade específica (soa falso). Mantenha tudo legível em 390px.
+Validate responsive storefront layouts, cart behavior and the configured order
+flow separately. A public page, successful build or mock QR does not demonstrate
+payment settlement, inventory correctness or fulfillment readiness. Keep test
+orders and integration checks isolated from real customer data and transactions.
